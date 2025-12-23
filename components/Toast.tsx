@@ -75,9 +75,8 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     top: 60,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
+    right: 16,
+    alignItems: 'flex-end',
     zIndex: 9999,
     pointerEvents: 'box-none',
   },
@@ -89,8 +88,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     borderLeftWidth: 4,
-    minWidth: 200,
+    minWidth: 350,
     maxWidth: '90%',
+    width: 'auto',
     ...shadows.md,
   },
   message: {
@@ -99,6 +99,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
     color: colors.textPrimary,
     marginLeft: spacing.sm,
+    flexShrink: 1,
   },
   closeButton: {
     marginLeft: spacing.sm,

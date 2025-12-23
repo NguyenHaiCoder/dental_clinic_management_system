@@ -122,7 +122,7 @@ export default function CreatePatientScreen() {
           label="Ngày sinh"
           value={formData.dateOfBirth}
           onChangeText={(text) => setFormData({ ...formData, dateOfBirth: text })}
-          placeholder="YYYY-MM-DD"
+          placeholder="dd-mm-yyyy"
         />
 
         <Input

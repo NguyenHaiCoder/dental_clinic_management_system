@@ -16,8 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import Input from '../../components/Input';
-import { useToast } from '../../contexts/ToastContext';
 import { borderRadius, colors, layout, shadows, spacing, typography } from '../../constants/theme';
+import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate, getTodayDate } from '../../utils/formatters';
 
 interface CustomService {
@@ -439,7 +439,7 @@ export default function CreateExaminationScreen() {
           <Input
             value={formData.date}
             onChangeText={(text) => setFormData({ ...formData, date: text })}
-            placeholder="YYYY-MM-DD"
+            placeholder="dd-mm-yyyy"
             leftIcon={<Ionicons name="calendar" size={20} color={colors.textSecondary} />}
           />
           <Text style={styles.dateHint}>
