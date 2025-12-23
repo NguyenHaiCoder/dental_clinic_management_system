@@ -130,38 +130,51 @@ export default function CreateExaminationScreen() {
 
   const selectedPatient = allPatients.find((p) => p.id === formData.patientId);
 
-  const calculateTotal = (selectedServices: string[], selectedDiseases: string[]) => {
+  const calculateTotal = (
+    selectedServices: string[],
+    selectedDiseases: string[],
+    additionalService?: CustomService,
+    additionalDisease?: CustomDisease
+  ) => {
+    // Include additional service/disease if provided (for newly created items)
+    const servicesToCheck = additionalService
+      ? [...allServices, additionalService]
+      : allServices;
+    const diseasesToCheck = additionalDisease
+      ? [...allDiseases, additionalDisease]
+      : allDiseases;
+
     const servicesTotal = selectedServices.reduce((sum, id) => {
-      const s = allServices.find((sv) => sv.id === id);
+      const s = servicesToCheck.find((sv) => sv.id === id);
       return sum + (s?.price || 0);
     }, 0);
     const diseasesTotal = selectedDiseases.reduce((sum, id) => {
-      const d = allDiseases.find((dc) => dc.id === id);
+      const d = diseasesToCheck.find((dc) => dc.id === id);
       return sum + (d?.price || 0);
     }, 0);
     return servicesTotal + diseasesTotal;
   };
 
-  const handleServiceToggle = (serviceId: string) => {
+  const handleServiceToggle = (serviceId: string, additionalService?: CustomService) => {
     setFormData((prev) => {
       const newServices = prev.services.includes(serviceId)
         ? prev.services.filter((id) => id !== serviceId)
         : [...prev.services, serviceId];
 
-      const total = calculateTotal(newServices, prev.diseases);
+      const total = calculateTotal(newServices, prev.diseases, additionalService);
       setTotalCost(total);
 
       return { ...prev, services: newServices };
     });
   };
 
-  const handleDiseaseToggle = (diseaseId: string) => {
+  const handleDiseaseToggle = (diseaseId: string, additionalDisease?: CustomDisease) => {
     setFormData((prev) => {
       const newDiseases = prev.diseases.includes(diseaseId)
         ? prev.diseases.filter((id) => id !== diseaseId)
         : [...prev.diseases, diseaseId];
 
-      const total = calculateTotal(prev.services, newDiseases);
+      const total = calculateTotal(prev.services, newDiseases, undefined, additionalDisease);
       setTotalCost(total);
 
       return { ...prev, diseases: newDiseases };
@@ -209,8 +222,8 @@ export default function CreateExaminationScreen() {
         isCustom: true,
       };
       setCustomServices([...customServices, newService]);
-      // Auto-select the new service - this will also update totalCost
-      handleServiceToggle(newService.id);
+      // Auto-select the new service and calculate total with the new service
+      handleServiceToggle(newService.id, newService);
     }
 
     setCustomServiceForm({ name: '', price: '' });
@@ -259,8 +272,8 @@ export default function CreateExaminationScreen() {
         isCustom: true,
       };
       setCustomDiseases([...customDiseases, newDisease]);
-      // Auto-select the new disease - handleDiseaseToggle will update totalCost automatically
-      handleDiseaseToggle(newDisease.id);
+      // Auto-select the new disease and calculate total with the new disease
+      handleDiseaseToggle(newDisease.id, newDisease);
     }
 
     setCustomDiseaseForm({ name: '', price: '' });
