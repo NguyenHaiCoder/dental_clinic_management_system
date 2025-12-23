@@ -640,7 +640,7 @@ export default function CreateExaminationScreen() {
         >
           <View style={styles.modalBackdrop}>
             <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+              <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {editingServiceId ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
               </Text>
@@ -671,15 +671,15 @@ export default function CreateExaminationScreen() {
                     returnKeyType="next"
                   />
 
-              <Input
-                label="Giá (₫) *"
-                value={customServiceForm.price}
-                onChangeText={(text) =>
-                  setCustomServiceForm({ ...customServiceForm, price: text })
-                }
-                placeholder="Nhập giá tiền"
-                keyboardType="numeric"
-              />
+                  <Input
+                    label="Giá (₫) *"
+                    value={customServiceForm.price}
+                    onChangeText={(text) =>
+                      setCustomServiceForm({ ...customServiceForm, price: text })
+                    }
+                    placeholder="Nhập giá tiền"
+                    keyboardType="numeric"
+                  />
 
                   <Button
                     title={editingServiceId ? 'Lưu thay đổi' : 'Thêm dịch vụ'}
@@ -745,15 +745,15 @@ export default function CreateExaminationScreen() {
                     }}
                   />
 
-              <Input
-                label="Giá (₫) *"
-                value={customDiseaseForm.price}
-                onChangeText={(text) =>
-                  setCustomDiseaseForm({ ...customDiseaseForm, price: text })
-                }
-                placeholder="Nhập giá tiền"
-                keyboardType="numeric"
-              />
+                  <Input
+                    label="Giá (₫) *"
+                    value={customDiseaseForm.price}
+                    onChangeText={(text) =>
+                      setCustomDiseaseForm({ ...customDiseaseForm, price: text })
+                    }
+                    placeholder="Nhập giá tiền"
+                    keyboardType="numeric"
+                  />
 
                   <Button
                     title={editingDiseaseId ? 'Lưu thay đổi' : 'Thêm mặt bệnh'}
@@ -763,8 +763,8 @@ export default function CreateExaminationScreen() {
                   />
                 </ScrollView>
               </View>
-            </TouchableOpacity>
-          </TouchableOpacity>
+            </View>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
