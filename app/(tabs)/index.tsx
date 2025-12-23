@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useToast } from '../../contexts/ToastContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Card from '../../components/Card';
 import StatusChip from '../../components/StatusChip';
@@ -12,23 +13,13 @@ import { formatCurrency, formatDate } from '../../utils/formatters';
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { showToast } = useToast();
 
   const handleLogout = () => {
-    Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc chắn muốn đăng xuất?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Đăng xuất',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/login' as any);
-          },
-        },
-      ]
-    );
+    // For web compatibility, directly logout without confirmation
+    // In a real app, you might want to use a custom confirmation modal
+    logout();
+    showToast('Đã đăng xuất', 'info');
   };
 
   const getRoleLabel = (role?: string) => {

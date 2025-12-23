@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useToast } from '../../contexts/ToastContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -13,6 +14,7 @@ import { formatCurrency } from '../../utils/formatters';
 export default function DiseaseCategoryDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { showToast } = useToast();
 
   // Mock data - replace with actual data fetching
   const [category, setCategory] = useState({
@@ -33,24 +35,19 @@ export default function DiseaseCategoryDetailScreen() {
 
   const handleSave = () => {
     // Save logic here
-    Alert.alert('Thành công', 'Đã cập nhật mặt bệnh thành công', [
-      { text: 'OK', onPress: () => setIsEditing(false) },
-    ]);
+    showToast('Đã cập nhật mặt bệnh thành công', 'success');
+    setTimeout(() => {
+      setIsEditing(false);
+    }, 1500);
   };
 
   const handleToggleActive = () => {
-    Alert.alert(
-      category.isActive ? 'Ngừng hoạt động' : 'Kích hoạt',
-      `Bạn có chắc chắn muốn ${category.isActive ? 'ngừng hoạt động' : 'kích hoạt'} mặt bệnh này?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xác nhận',
-          onPress: () => {
-            setCategory({ ...category, isActive: !category.isActive });
-          },
-        },
-      ]
+    // For web compatibility, directly toggle without confirmation
+    // In a real app, you might want to use a custom confirmation modal
+    setCategory({ ...category, isActive: !category.isActive });
+    showToast(
+      category.isActive ? 'Đã ngừng hoạt động mặt bệnh' : 'Đã kích hoạt mặt bệnh',
+      'success'
     );
   };
 

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useToast } from '../../contexts/ToastContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -66,9 +67,10 @@ export default function PatientDetailScreen() {
 
   const handleSave = () => {
     // Save logic here
-    Alert.alert('Thành công', 'Đã cập nhật thông tin bệnh nhân thành công', [
-      { text: 'OK', onPress: () => setIsEditing(false) },
-    ]);
+    showToast('Đã cập nhật thông tin bệnh nhân thành công', 'success');
+    setTimeout(() => {
+      setIsEditing(false);
+    }, 1500);
   };
 
   const handleViewHistory = () => {

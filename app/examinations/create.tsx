@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import Input from '../../components/Input';
+import { useToast } from '../../contexts/ToastContext';
 import { borderRadius, colors, layout, shadows, spacing, typography } from '../../constants/theme';
 import { formatCurrency, formatDate, getTodayDate } from '../../utils/formatters';
 
@@ -36,6 +36,7 @@ interface CustomDisease {
 
 export default function CreateExaminationScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     patientId: '',
     date: getTodayDate(),
@@ -183,11 +184,11 @@ export default function CreateExaminationScreen() {
 
   const handleAddCustomService = () => {
     if (!customServiceForm.name.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên dịch vụ');
+      showToast('Vui lòng nhập tên dịch vụ', 'error');
       return;
     }
     if (!customServiceForm.price.trim() || parseFloat(customServiceForm.price) <= 0) {
-      Alert.alert('Lỗi', 'Vui lòng nhập giá hợp lệ');
+      showToast('Vui lòng nhập giá hợp lệ', 'error');
       return;
     }
 
@@ -233,11 +234,11 @@ export default function CreateExaminationScreen() {
 
   const handleAddCustomDisease = () => {
     if (!customDiseaseForm.name.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên mặt bệnh');
+      showToast('Vui lòng nhập tên mặt bệnh', 'error');
       return;
     }
     if (!customDiseaseForm.price.trim() || parseFloat(customDiseaseForm.price) <= 0) {
-      Alert.alert('Lỗi', 'Vui lòng nhập giá hợp lệ');
+      showToast('Vui lòng nhập giá hợp lệ', 'error');
       return;
     }
 
@@ -305,22 +306,20 @@ export default function CreateExaminationScreen() {
 
   const handleSave = () => {
     if (!formData.patientId) {
-      Alert.alert('Lỗi', 'Vui lòng chọn bệnh nhân');
+      showToast('Vui lòng chọn bệnh nhân', 'error');
       return;
     }
 
     if (formData.services.length === 0 && formData.diseases.length === 0) {
-      Alert.alert(
-        'Lỗi',
-        'Thiếu thông tin khám bệnh. Vui lòng chọn ít nhất một dịch vụ hoặc mặt bệnh.'
-      );
+      showToast('Vui lòng chọn ít nhất một dịch vụ hoặc mặt bệnh', 'error');
       return;
     }
 
     // Save logic here
-    Alert.alert('Thành công', 'Đã tạo khám bệnh thành công', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+    showToast('Đã tạo khám bệnh thành công', 'success');
+    setTimeout(() => {
+      router.back();
+    }, 1500);
   };
 
   return (

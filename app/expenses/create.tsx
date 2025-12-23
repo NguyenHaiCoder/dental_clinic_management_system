@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useToast } from '../../contexts/ToastContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -10,6 +11,7 @@ import { getTodayDate } from '../../utils/formatters';
 
 export default function CreateExpenseScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -57,9 +59,10 @@ export default function CreateExpenseScreen() {
     }
 
     // Save logic here
-    Alert.alert('Thành công', 'Đã ghi nhận chi phí thành công', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+    showToast('Đã ghi nhận chi phí thành công', 'success');
+    setTimeout(() => {
+      router.back();
+    }, 1500);
   };
 
   return (

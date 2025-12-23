@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useToast } from '../../contexts/ToastContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -9,6 +10,7 @@ import { colors, layout, spacing, typography } from '../../constants/theme';
 
 export default function CreateDiseaseCategoryScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -43,9 +45,10 @@ export default function CreateDiseaseCategoryScreen() {
 
     // Check for duplicate name (mock)
     // In real app, this would be an API call
-    Alert.alert('Thành công', 'Đã tạo mặt bệnh thành công', [
-      { text: 'OK', onPress: () => router.back() },
-    ]);
+    showToast('Đã tạo mặt bệnh thành công', 'success');
+    setTimeout(() => {
+      router.back();
+    }, 1500);
   };
 
   return (
