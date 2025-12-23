@@ -10,7 +10,7 @@ interface InputProps extends TextInputProps {
   rightIcon?: React.ReactNode;
 }
 
-export default function Input({
+const Input = React.forwardRef<TextInput, InputProps>(({
   label,
   error,
   containerStyle,
@@ -18,13 +18,14 @@ export default function Input({
   rightIcon,
   style,
   ...props
-}: InputProps) {
+}, ref) => {
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={[styles.inputContainer, error && styles.inputContainerError]}>
         {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
         <TextInput
+          ref={ref}
           style={[
             styles.input,
             leftIcon && styles.inputWithLeftIcon,
@@ -39,7 +40,11 @@ export default function Input({
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
-}
+});
+
+Input.displayName = 'Input';
+
+export default Input;
 
 const styles = StyleSheet.create({
   container: {

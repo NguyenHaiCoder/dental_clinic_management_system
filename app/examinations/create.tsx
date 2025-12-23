@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -16,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import Input from '../../components/Input';
-import { borderRadius, colors, layout, spacing, typography } from '../../constants/theme';
+import { borderRadius, colors, layout, shadows, spacing, typography } from '../../constants/theme';
 import { formatCurrency, formatDate, getTodayDate } from '../../utils/formatters';
 
 interface CustomService {
@@ -51,6 +52,29 @@ export default function CreateExaminationScreen() {
   const [editingDiseaseId, setEditingDiseaseId] = useState<string | null>(null);
   const [customServiceForm, setCustomServiceForm] = useState({ name: '', price: '' });
   const [customDiseaseForm, setCustomDiseaseForm] = useState({ name: '', price: '' });
+  
+  // Refs for auto focus
+  const serviceNameInputRef = useRef<TextInput>(null);
+  const diseaseNameInputRef = useRef<TextInput>(null);
+  
+  // Auto focus when modal opens
+  useEffect(() => {
+    if (showCustomServiceModal && serviceNameInputRef.current) {
+      // Small delay to ensure modal is fully rendered
+      setTimeout(() => {
+        serviceNameInputRef.current?.focus();
+      }, 100);
+    }
+  }, [showCustomServiceModal]);
+  
+  useEffect(() => {
+    if (showCustomDiseaseModal && diseaseNameInputRef.current) {
+      // Small delay to ensure modal is fully rendered
+      setTimeout(() => {
+        diseaseNameInputRef.current?.focus();
+      }, 100);
+    }
+  }, [showCustomDiseaseModal]);
 
   // Mock data - replace with actual data fetching
   const allPatients = [
@@ -604,13 +628,18 @@ export default function CreateExaminationScreen() {
         visible={showCustomServiceModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowCustomServiceModal(false)}
+        onRequestClose={() => {
+          // Disable back button on Android to prevent accidental data loss
+          // Only allow closing via close button
+        }}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <View style={styles.modalContent}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {editingServiceId ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
@@ -626,15 +655,21 @@ export default function CreateExaminationScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
-              <Input
-                label="Tên dịch vụ *"
-                value={customServiceForm.name}
-                onChangeText={(text) =>
-                  setCustomServiceForm({ ...customServiceForm, name: text })
-                }
-                placeholder="Ví dụ: Tẩy trắng răng, Niềng răng..."
-              />
+                <ScrollView 
+                  style={styles.modalBody}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                >
+                  <Input
+                    ref={serviceNameInputRef}
+                    label="Tên dịch vụ *"
+                    value={customServiceForm.name}
+                    onChangeText={(text) =>
+                      setCustomServiceForm({ ...customServiceForm, name: text })
+                    }
+                    placeholder="Ví dụ: Tẩy trắng răng, Niềng răng..."
+                    returnKeyType="next"
+                  />
 
               <Input
                 label="Giá (₫) *"
@@ -646,13 +681,15 @@ export default function CreateExaminationScreen() {
                 keyboardType="numeric"
               />
 
-              <Button
-                title={editingServiceId ? 'Lưu thay đổi' : 'Thêm dịch vụ'}
-                onPress={handleAddCustomService}
-                fullWidth
-                style={styles.modalButton}
-              />
-            </ScrollView>
+                  <Button
+                    title={editingServiceId ? 'Lưu thay đổi' : 'Thêm dịch vụ'}
+                    onPress={handleAddCustomService}
+                    fullWidth
+                    style={styles.modalButton}
+                  />
+                </ScrollView>
+              </View>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -662,38 +699,51 @@ export default function CreateExaminationScreen() {
         visible={showCustomDiseaseModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowCustomDiseaseModal(false)}
+        onRequestClose={() => {
+          // Disable back button on Android to prevent accidental data loss
+          // Only allow closing via close button
+        }}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingDiseaseId ? 'Chỉnh sửa mặt bệnh' : 'Thêm mặt bệnh mới'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowCustomDiseaseModal(false);
-                  setEditingDiseaseId(null);
-                  setCustomDiseaseForm({ name: '', price: '' });
-                }}
-              >
-                <Ionicons name="close" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>
+                    {editingDiseaseId ? 'Chỉnh sửa mặt bệnh' : 'Thêm mặt bệnh mới'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowCustomDiseaseModal(false);
+                      setEditingDiseaseId(null);
+                      setCustomDiseaseForm({ name: '', price: '' });
+                    }}
+                  >
+                    <Ionicons name="close" size={24} color={colors.textPrimary} />
+                  </TouchableOpacity>
+                </View>
 
-            <ScrollView style={styles.modalBody}>
-              <Input
-                label="Tên mặt bệnh *"
-                value={customDiseaseForm.name}
-                onChangeText={(text) =>
-                  setCustomDiseaseForm({ ...customDiseaseForm, name: text })
-                }
-                placeholder="Ví dụ: Sâu răng, Viêm nướu..."
-                autoFocus
-              />
+                <ScrollView 
+                  style={styles.modalBody}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                >
+                  <Input
+                    ref={diseaseNameInputRef}
+                    label="Tên mặt bệnh *"
+                    value={customDiseaseForm.name}
+                    onChangeText={(text) =>
+                      setCustomDiseaseForm({ ...customDiseaseForm, name: text })
+                    }
+                    placeholder="Ví dụ: Sâu răng, Viêm nướu..."
+                    returnKeyType="next"
+                    onSubmitEditing={() => {
+                      // Focus on price input if needed
+                    }}
+                  />
 
               <Input
                 label="Giá (₫) *"
@@ -705,14 +755,16 @@ export default function CreateExaminationScreen() {
                 keyboardType="numeric"
               />
 
-              <Button
-                title={editingDiseaseId ? 'Lưu thay đổi' : 'Thêm mặt bệnh'}
-                onPress={handleAddCustomDisease}
-                fullWidth
-                style={styles.modalButton}
-              />
-            </ScrollView>
-          </View>
+                  <Button
+                    title={editingDiseaseId ? 'Lưu thay đổi' : 'Thêm mặt bệnh'}
+                    onPress={handleAddCustomDisease}
+                    fullWidth
+                    style={styles.modalButton}
+                  />
+                </ScrollView>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
@@ -1053,14 +1105,24 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalBackdrop: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: colors.cardBackground,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+    borderRadius: borderRadius.xl,
     padding: spacing.lg,
-    maxHeight: '80%',
+    width: '100%',
+    maxWidth:'100%',
+    maxHeight: '100%',
+    ...shadows.lg,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1074,7 +1136,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   modalBody: {
-    maxHeight: 400,
+    maxHeight: '100%',
   },
   modalButton: {
     marginTop: spacing.md,
