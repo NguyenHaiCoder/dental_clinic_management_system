@@ -180,13 +180,25 @@ export default function CreateExaminationScreen() {
 
     if (editingServiceId) {
       // Update existing custom service
+      const updatedService = {
+        id: editingServiceId,
+        name: customServiceForm.name,
+        price: parseFloat(customServiceForm.price),
+        isCustom: true as const,
+      };
       setCustomServices(
         customServices.map((s) =>
-          s.id === editingServiceId
-            ? { ...s, name: customServiceForm.name, price: parseFloat(customServiceForm.price) }
-            : s
+          s.id === editingServiceId ? updatedService : s
         )
       );
+      // Recalculate total if this service is currently selected
+      if (formData.services.includes(editingServiceId)) {
+        setFormData((prev) => {
+          const total = calculateTotal(prev.services, prev.diseases);
+          setTotalCost(total);
+          return prev;
+        });
+      }
       setEditingServiceId(null);
     } else {
       // Create new custom service
@@ -197,16 +209,13 @@ export default function CreateExaminationScreen() {
         isCustom: true,
       };
       setCustomServices([...customServices, newService]);
-      // Auto-select the new service
+      // Auto-select the new service - this will also update totalCost
       handleServiceToggle(newService.id);
     }
 
     setCustomServiceForm({ name: '', price: '' });
     setShowCustomServiceModal(false);
-    
-    // Recalculate total
-    const total = calculateTotal(formData.services, formData.diseases);
-    setTotalCost(total);
+    // Note: totalCost is automatically updated by handleServiceToggle
   };
 
   const handleAddCustomDisease = () => {
@@ -221,13 +230,25 @@ export default function CreateExaminationScreen() {
 
     if (editingDiseaseId) {
       // Update existing custom disease
+      const updatedDisease = {
+        id: editingDiseaseId,
+        name: customDiseaseForm.name,
+        price: parseFloat(customDiseaseForm.price),
+        isCustom: true as const,
+      };
       setCustomDiseases(
         customDiseases.map((d) =>
-          d.id === editingDiseaseId
-            ? { ...d, name: customDiseaseForm.name, price: parseFloat(customDiseaseForm.price) }
-            : d
+          d.id === editingDiseaseId ? updatedDisease : d
         )
       );
+      // Recalculate total if this disease is currently selected
+      if (formData.diseases.includes(editingDiseaseId)) {
+        setFormData((prev) => {
+          const total = calculateTotal(prev.services, prev.diseases);
+          setTotalCost(total);
+          return prev;
+        });
+      }
       setEditingDiseaseId(null);
     } else {
       // Create new custom disease
@@ -238,16 +259,13 @@ export default function CreateExaminationScreen() {
         isCustom: true,
       };
       setCustomDiseases([...customDiseases, newDisease]);
-      // Auto-select the new disease
+      // Auto-select the new disease - handleDiseaseToggle will update totalCost automatically
       handleDiseaseToggle(newDisease.id);
     }
 
     setCustomDiseaseForm({ name: '', price: '' });
     setShowCustomDiseaseModal(false);
-    
-    // Recalculate total
-    const total = calculateTotal(formData.services, formData.diseases);
-    setTotalCost(total);
+    // Note: totalCost is automatically updated by handleDiseaseToggle above
   };
 
   const handleEditCustomService = (serviceId: string) => {
