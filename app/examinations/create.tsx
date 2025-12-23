@@ -641,21 +641,21 @@ export default function CreateExaminationScreen() {
           <View style={styles.modalBackdrop}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingServiceId ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowCustomServiceModal(false);
-                  setEditingServiceId(null);
-                  setCustomServiceForm({ name: '', price: '' });
-                }}
-              >
-                <Ionicons name="close" size={24} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
+                <Text style={styles.modalTitle}>
+                  {editingServiceId ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowCustomServiceModal(false);
+                    setEditingServiceId(null);
+                    setCustomServiceForm({ name: '', price: '' });
+                  }}
+                >
+                  <Ionicons name="close" size={24} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
 
-                <ScrollView 
+              <ScrollView 
                   style={styles.modalBody}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
@@ -711,22 +711,22 @@ export default function CreateExaminationScreen() {
         >
           <View style={styles.modalBackdrop}>
             <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>
-                    {editingDiseaseId ? 'Chỉnh sửa mặt bệnh' : 'Thêm mặt bệnh mới'}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setShowCustomDiseaseModal(false);
-                      setEditingDiseaseId(null);
-                      setCustomDiseaseForm({ name: '', price: '' });
-                    }}
-                  >
-                    <Ionicons name="close" size={24} color={colors.textPrimary} />
-                  </TouchableOpacity>
-                </View>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {editingDiseaseId ? 'Chỉnh sửa mặt bệnh' : 'Thêm mặt bệnh mới'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowCustomDiseaseModal(false);
+                    setEditingDiseaseId(null);
+                    setCustomDiseaseForm({ name: '', price: '' });
+                  }}
+                >
+                  <Ionicons name="close" size={24} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
 
-                <ScrollView 
+              <ScrollView 
                   style={styles.modalBody}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
