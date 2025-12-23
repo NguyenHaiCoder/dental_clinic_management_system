@@ -687,8 +687,7 @@ export default function CreateExaminationScreen() {
                     fullWidth
                     style={styles.modalButton}
                   />
-                </ScrollView>
-              </View>
+              </ScrollView>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -761,8 +760,7 @@ export default function CreateExaminationScreen() {
                     fullWidth
                     style={styles.modalButton}
                   />
-                </ScrollView>
-              </View>
+              </ScrollView>
             </View>
           </View>
         </KeyboardAvoidingView>
