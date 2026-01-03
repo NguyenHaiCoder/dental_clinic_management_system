@@ -1,16 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Card from '../../components/Card';
 import StatusChip from '../../components/StatusChip';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { Appointment } from '../../types';
 import { formatDate } from '../../utils/formatters';
+import { useToast } from '../../contexts/ToastContext';
 
 export default function AppointmentsScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [statusFilter, setStatusFilter] = useState<'all' | 'scheduled' | 'completed' | 'cancelled'>('all');
   const [appointments, setAppointments] = useState<Appointment[]>([
     {
@@ -85,6 +87,11 @@ export default function AppointmentsScreen() {
     if (statusFilter === 'all') return true;
     return apt.status === statusFilter;
   });
+  const [rescheduleModal, setRescheduleModal] = useState<{
+    visible: boolean;
+    id: string | null;
+    date: string;
+  }>({ visible: false, id: null, date: '' });
 
   const sortedAppointments = [...filteredAppointments].sort((a, b) => {
     return new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime();
@@ -102,10 +109,33 @@ export default function AppointmentsScreen() {
 
   const handleCheckIn = (id: string) => {
     updateStatus(id, 'completed');
+    showToast('Đã check-in và hoàn thành lịch hẹn', 'success');
   };
 
-  const handleLeave = (id: string) => {
-    updateStatus(id, 'cancelled');
+  const openReschedule = (apt: Appointment) => {
+    setRescheduleModal({
+      visible: true,
+      id: apt.id,
+      date: formatDate(apt.appointmentDate),
+    });
+  };
+
+  const applyReschedule = () => {
+    if (!rescheduleModal.id) return;
+    updateStatus(rescheduleModal.id, 'scheduled');
+    setAppointments((prev) =>
+      prev.map((a) =>
+        a.id === rescheduleModal.id
+          ? { ...a, appointmentDate: rescheduleModal.date }
+          : a
+      )
+    );
+    showToast('Đã cập nhật lịch hẹn', 'success');
+    setRescheduleModal({ visible: false, id: null, date: '' });
+  };
+
+  const cancelReschedule = () => {
+    setRescheduleModal({ visible: false, id: null, date: '' });
   };
 
   return (
@@ -263,9 +293,9 @@ export default function AppointmentsScreen() {
                 <View style={styles.actionRow}>
                   <TouchableOpacity
                     style={styles.leaveButton}
-                    onPress={() => handleLeave(appointment.id)}
+                    onPress={() => openReschedule(appointment)}
                   >
-                    <Ionicons name="log-out-outline" size={18} color={colors.error} />
+                    <Ionicons name="calendar-outline" size={18} color={colors.error} />
                     <Text style={styles.leaveButtonText}>Rời lịch hẹn</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -281,6 +311,43 @@ export default function AppointmentsScreen() {
           ))
         )}
       </ScrollView>
+
+      <Modal
+        visible={rescheduleModal.visible}
+        transparent
+        animationType="slide"
+        onRequestClose={cancelReschedule}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Rời lịch hẹn</Text>
+              <TouchableOpacity onPress={cancelReschedule}>
+                <Ionicons name="close" size={22} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalBody}>
+              <Text style={styles.modalLabel}>Ngày mới (dd-mm-yyyy)</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={rescheduleModal.date}
+                onChangeText={(text) =>
+                  setRescheduleModal((p) => ({ ...p, date: text }))
+                }
+                placeholder="dd-mm-yyyy"
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalCancel} onPress={cancelReschedule}>
+                  <Text style={styles.modalCancelText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalSave} onPress={applyReschedule}>
+                  <Text style={styles.modalSaveText}>Lưu</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -429,6 +496,69 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
   },
   checkinButtonText: {
+    color: colors.cardBackground,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: typography.fontSize.lg,
+    color: colors.textPrimary,
+  },
+  modalBody: {
+    gap: spacing.sm,
+  },
+  modalLabel: {
+    color: colors.textSecondary,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: spacing.sm,
+    color: colors.textPrimary,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'flex-end',
+  },
+  modalCancel: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalCancelText: {
+    color: colors.textPrimary,
+  },
+  modalSave: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+  },
+  modalSaveText: {
     color: colors.cardBackground,
     fontFamily: typography.fontFamily.semiBold,
   },
