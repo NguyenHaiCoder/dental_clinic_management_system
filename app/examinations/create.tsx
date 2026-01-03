@@ -46,6 +46,7 @@ export default function CreateExaminationScreen() {
     dentistName: '',
   });
   const [totalCost, setTotalCost] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(0);
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
   const [showCustomServiceModal, setShowCustomServiceModal] = useState(false);
   const [showCustomDiseaseModal, setShowCustomDiseaseModal] = useState(false);
@@ -642,6 +643,45 @@ export default function CreateExaminationScreen() {
             <Text style={styles.totalLabel}>Tổng cộng:</Text>
             <Text style={styles.totalValue}>{formatCurrency(totalCost)}</Text>
           </View>
+        </Card>
+
+        {/* Payment Summary */}
+        <Card>
+          <Text style={styles.paymentTitle}>Thanh toán</Text>
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Thành tiền:</Text>
+            <Text style={styles.paymentValue}>{formatCurrency(totalCost)}</Text>
+          </View>
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Thanh toán:</Text>
+            <View style={styles.paymentInputContainer}>
+              <Input
+                value={paidAmount.toString()}
+                onChangeText={(text) => {
+                  const amount = parseFloat(text) || 0;
+                  setPaidAmount(amount);
+                }}
+                placeholder="0"
+                keyboardType="numeric"
+                style={styles.paymentInput}
+              />
+            </View>
+          </View>
+          <View style={styles.paymentRow}>
+            <Text style={styles.paymentLabel}>Còn nợ:</Text>
+            <Text style={[
+              styles.paymentValue,
+              { color: totalCost - paidAmount > 0 ? colors.error : colors.success }
+            ]}>
+              {formatCurrency(Math.max(0, totalCost - paidAmount))}
+            </Text>
+          </View>
+          {totalCost > 0 && paidAmount >= totalCost && (
+            <View style={styles.paymentNote}>
+              <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+              <Text style={styles.paymentNoteText}>Đã thanh toán đủ</Text>
+            </View>
+          )}
         </Card>
 
         {/* Save Button */}

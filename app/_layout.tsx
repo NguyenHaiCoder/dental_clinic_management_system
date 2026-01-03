@@ -47,6 +47,9 @@ function RootLayoutNav() {
       <Stack.Screen name="disease-categories/[id]" />
       <Stack.Screen name="expenses/index" />
       <Stack.Screen name="expenses/create" />
+      <Stack.Screen name="appointments/index" />
+      <Stack.Screen name="appointments/create" />
+      <Stack.Screen name="appointments/[id]" />
     </Stack>
   );
 }

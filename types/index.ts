@@ -85,4 +85,90 @@ export interface ExaminationDisease {
   subtotal: number;
 }
 
+export interface Appointment {
+  id: string;
+  patientId: string;
+  patient?: Patient;
+  examinationId?: string; // Link to examination if it's a follow-up
+  appointmentDate: string;
+  content?: string; // Internal notes, not for printing
+  status: 'scheduled' | 'completed' | 'cancelled';
+  createdAt: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string; // Tên xưởng
+  phone: string;
+  address?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface SupplierOrder {
+  id: string;
+  supplierId: string;
+  supplier?: Supplier;
+  patientId: string;
+  patient?: Patient;
+  patientName: string;
+  patientPhone: string;
+  sentDate: string; // Ngày gửi (auto or custom)
+  requirements?: string; // Yêu cầu (chất liệu, etc.)
+  toothCount: number; // Số lượng răng
+  totalAmount: number; // Tổng tiền
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  createdAt: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string; // Tên vật tư
+  unit?: string; // Đơn vị tính
+  stock: number; // Tồn kho hiện tại
+  createdAt: string;
+}
+
+export interface InventoryImport {
+  id: string;
+  itemId: string;
+  item?: InventoryItem;
+  quantity: number; // Số lượng nhập
+  importPrice: number; // Giá nhập
+  totalPrice: number; // Tổng giá nhập
+  date: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface InventoryExport {
+  id: string;
+  itemId: string;
+  item?: InventoryItem;
+  quantity: number; // Số lượng xuất
+  exportDate: string; // Ngày xuất
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Payment {
+  id: string;
+  examinationId: string;
+  amount: number; // Số tiền thanh toán
+  paymentDate: string;
+  paymentMethod?: 'cash' | 'card' | 'transfer';
+  notes?: string;
+  createdAt: string;
+}
+
+export interface PatientRelative {
+  id: string;
+  patientId: string;
+  relationship: string; // Ví dụ: "Con", "Cha", "Mẹ"
+  name?: string;
+  phone: string;
+  notes?: string;
+  createdAt: string;
+}
+
 

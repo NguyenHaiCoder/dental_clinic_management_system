@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useToast } from '../../contexts/ToastContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Card from '../../components/Card';
 import StatusChip from '../../components/StatusChip';
 import { colors, layout, spacing, typography } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 
 export default function Dashboard() {
@@ -40,22 +40,34 @@ export default function Dashboard() {
     todayRevenue: 2500000,
     totalPatients: 156,
     totalExaminations: 342,
+    todayAppointments: 5,
   };
 
-  const recentExaminations = [
+  // Mock appointments data - Lịch hẹn hôm nay và sắp tới
+  const todayAppointments = [
     {
       id: '1',
       patientName: 'Nguyễn Văn A',
-      date: new Date().toISOString(),
-      totalCost: 500000,
-      status: 'completed' as const,
+      appointmentDate: new Date().toISOString(),
+      content: 'Làm tiếp răng số 6, làm tiếp răng số 7',
+      status: 'scheduled' as const,
+      phone: '0901234567',
     },
     {
       id: '2',
       patientName: 'Trần Thị B',
-      date: new Date().toISOString(),
-      totalCost: 750000,
-      status: 'pending' as const,
+      appointmentDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      content: 'Tái khám sau điều trị',
+      status: 'scheduled' as const,
+      phone: '0907654321',
+    },
+    {
+      id: '3',
+      patientName: 'Lê Văn C',
+      appointmentDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      content: 'Kiểm tra sau niềng răng',
+      status: 'scheduled' as const,
+      phone: '0912345678',
     },
   ];
 
@@ -118,36 +130,59 @@ export default function Dashboard() {
 
           <Card style={styles.statCard}>
             <View style={styles.statIconContainer}>
-              <Ionicons name="document-text-outline" size={24} color={colors.warning} />
+              <Ionicons name="calendar-outline" size={24} color={colors.warning} />
             </View>
-            <Text style={styles.statValue}>{stats.totalExaminations}</Text>
-            <Text style={styles.statLabel}>Tổng khám bệnh</Text>
+            <Text style={styles.statValue}>{stats.todayAppointments}</Text>
+            <Text style={styles.statLabel}>Lịch hẹn hôm nay</Text>
           </Card>
         </View>
 
-        {/* Recent Examinations */}
+        {/* Today's Appointments */}
         <Card style={styles.recentCard}>
-          <Text style={styles.sectionTitle}>Khám bệnh gần đây</Text>
-          {recentExaminations.map((exam) => (
-            <View key={exam.id} style={styles.examItem}>
-              <View style={styles.examInfo}>
-                <Text style={styles.examPatientName}>{exam.patientName}</Text>
-                <Text style={styles.examDate}>{formatDate(exam.date)}</Text>
-              </View>
-              <View style={styles.examRight}>
-                <Text style={styles.examCost}>{formatCurrency(exam.totalCost)}</Text>
-                <View
-                  style={[
-                    styles.statusDot,
-                    {
-                      backgroundColor:
-                        exam.status === 'completed' ? colors.success : colors.warning,
-                    },
-                  ]}
-                />
-              </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Lịch hẹn</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/appointments')}
+              style={styles.viewAllButton}
+            >
+              <Text style={styles.viewAllText}>Xem tất cả</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          {todayAppointments.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="calendar-outline" size={48} color={colors.textTertiary} />
+              <Text style={styles.emptyText}>Không có lịch hẹn nào</Text>
             </View>
-          ))}
+          ) : (
+            todayAppointments.map((appointment) => (
+              <TouchableOpacity
+                key={appointment.id}
+                style={styles.appointmentItem}
+                onPress={() => router.push(`/appointments/${appointment.id}`)}
+              >
+                <View style={styles.appointmentInfo}>
+                  <View style={styles.appointmentHeader}>
+                    <Text style={styles.appointmentPatientName}>{appointment.patientName}</Text>
+                    <StatusChip
+                      label={appointment.status === 'scheduled' ? 'Đã hẹn' : 'Hoàn thành'}
+                      status={appointment.status === 'scheduled' ? 'info' : 'success'}
+                    />
+                  </View>
+                  <Text style={styles.appointmentDate}>
+                    <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />{' '}
+                    {formatDate(appointment.appointmentDate)}
+                  </Text>
+                  {appointment.content && (
+                    <Text style={styles.appointmentContent} numberOfLines={1}>
+                      {appointment.content}
+                    </Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            ))
+          )}
         </Card>
       </ScrollView>
     </SafeAreaView>
@@ -277,5 +312,66 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  viewAllText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.primary,
+  },
+  appointmentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  appointmentInfo: {
+    flex: 1,
+  },
+  appointmentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  appointmentPatientName: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.semiBold,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  appointmentDate: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  appointmentContent: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textTertiary,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textTertiary,
+    marginTop: spacing.md,
   },
 });
