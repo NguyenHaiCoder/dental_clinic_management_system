@@ -15,6 +15,7 @@ export default function CreatePatientScreen() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [qrText, setQrText] = useState('');
+  const [WebQrReader, setWebQrReader] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -32,6 +33,19 @@ export default function CreatePatientScreen() {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const BarCodeScanner =
     Platform.OS !== 'web' ? require('expo-barcode-scanner').BarCodeScanner : null;
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      import('react-qr-reader')
+        .then((mod) => {
+          const Comp = (mod as any).QrReader || (mod as any).default || null;
+          setWebQrReader(() => Comp);
+        })
+        .catch(() => {
+          setWebQrReader(null);
+        });
+    }
+  }, []);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const validate = () => {
@@ -250,51 +264,49 @@ export default function CreatePatientScreen() {
             </TouchableOpacity>
           </View>
           {Platform.OS === 'web' ? (
-            <View style={styles.permissionBox}>
-              <Text style={styles.permissionText}>Camera QR không hỗ trợ trên web.</Text>
-              <Input
-                label="Dán dữ liệu QR (các trường cách nhau dấu |)"
-                value={qrText}
-                onChangeText={setQrText}
-                placeholder="CCCD|Họ tên|01022000|Nam|Địa chỉ|05052020"
-                multiline
-                numberOfLines={3}
-                style={styles.qrInput}
-              />
-              <Button
-                title="Parse dữ liệu"
-                onPress={() => {
-                  if (!qrText.trim()) {
-                    showToast('Dán dữ liệu QR trước', 'error');
-                    return;
-                  }
-                  applyParsedQR(qrText.trim());
-                }}
-                fullWidth
-                style={styles.saveButton}
-              />
-            </View>
+          <View style={styles.permissionBox}>
+            {WebQrReader ? (
+              <View style={styles.webScannerBox}>
+                <Text style={styles.permissionText}>Quét QR bằng camera (web)</Text>
+                <WebQrReader
+                  constraints={{ facingMode: 'environment' }}
+                  onResult={(result: any, error: any) => {
+                    if (!!result) {
+                      const text = result?.text || '';
+                      if (text) applyParsedQR(text);
+                    }
+                  }}
+                  videoStyle={{ width: '100%' }}
+                />
+              </View>
+            ) : (
+              <>
+                <Text style={styles.permissionText}>Camera QR không hỗ trợ, dán dữ liệu:</Text>
+                <Input
+                  label="Dán dữ liệu QR (các trường cách nhau dấu |)"
+                  value={qrText}
+                  onChangeText={setQrText}
+                  placeholder="CCCD|Họ tên|01022000|Nam|Địa chỉ|05052020"
+                  multiline
+                  numberOfLines={3}
+                  style={styles.qrInput}
+                />
+                <Button
+                  title="Parse dữ liệu"
+                  onPress={() => {
+                    if (!qrText.trim()) {
+                      showToast('Dán dữ liệu QR trước', 'error');
+                      return;
+                    }
+                    applyParsedQR(qrText.trim());
+                  }}
+                  fullWidth
+                  style={styles.saveButton}
+                />
+              </>
+            )}
+          </View>
           ) : (
-            <>
-              {hasCameraPermission === false && (
-                <View style={styles.permissionBox}>
-                  <Text style={styles.permissionText}>Không có quyền truy cập camera.</Text>
-                  <Button title="Đóng" onPress={() => setShowScanner(false)} />
-                </View>
-              )}
-              {hasCameraPermission === true && (
-                <View style={styles.scannerBox}>
-                  <BarCodeScanner
-                    onBarCodeScanned={handleBarCodeScanned}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                </View>
-              )}
-              {hasCameraPermission === null && (
-                <View style={styles.permissionBox}>
-                  <Text style={styles.permissionText}>Đang yêu cầu quyền camera...</Text>
-                </View>
-              )}
             <>
               {!BarCodeScanner && (
                 <View style={styles.permissionBox}>
