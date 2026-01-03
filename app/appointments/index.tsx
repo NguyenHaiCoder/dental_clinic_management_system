@@ -6,9 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Card from '../../components/Card';
 import StatusChip from '../../components/StatusChip';
 import { colors, layout, spacing, typography } from '../../constants/theme';
+import { useToast } from '../../contexts/ToastContext';
 import { Appointment } from '../../types';
 import { formatDate } from '../../utils/formatters';
-import { useToast } from '../../contexts/ToastContext';
 
 export default function AppointmentsScreen() {
   const router = useRouter();
@@ -73,16 +73,6 @@ export default function AppointmentsScreen() {
     },
   ]);
 
-  const today = new Date();
-  const isSameDay = (d: string) => {
-    const date = new Date(d);
-    return (
-      date.getFullYear() === today.getFullYear() &&
-      date.getMonth() === today.getMonth() &&
-      date.getDate() === today.getDate()
-    );
-  };
-
   const filteredAppointments = appointments.filter((apt) => {
     if (statusFilter === 'all') return true;
     return apt.status === statusFilter;
@@ -98,6 +88,16 @@ export default function AppointmentsScreen() {
   });
 
   const summaryToday = useMemo(() => {
+    const today = new Date();
+    const isSameDay = (d: string) => {
+      const date = new Date(d);
+      return (
+        date.getFullYear() === today.getFullYear() &&
+        date.getMonth() === today.getMonth() &&
+        date.getDate() === today.getDate()
+      );
+    };
+
     const todayApts = appointments.filter((a) => isSameDay(a.appointmentDate));
     const followUps = todayApts.filter((a) => (a.content || '').toLowerCase().includes('tái'));
     return { todayApts, followUps };
@@ -152,7 +152,7 @@ export default function AppointmentsScreen() {
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => router.push('/appointments/create')}
+          onPress={() => router.push('/appointments/create' as any)}
           style={styles.addButton}
         >
           <Ionicons name="add-circle" size={24} color={colors.primary} />
@@ -247,7 +247,7 @@ export default function AppointmentsScreen() {
             <Card
               key={appointment.id}
               style={styles.appointmentCard}
-              onPress={() => router.push(`/appointments/${appointment.id}`)}
+              onPress={() => router.push(`/appointments/${appointment.id}` as any)}
             >
               <View style={styles.appointmentHeader}>
                 <View style={styles.appointmentInfo}>
