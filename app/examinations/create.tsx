@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -9,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
@@ -41,6 +43,54 @@ export default function CreateExaminationScreen() {
     customerSignature: '', // Chữ ký khách hàng
     dentistSignature: '', // Chữ ký bác sĩ
   });
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const webFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePickImages = async () => {
+    if (Platform.OS === 'web') {
+      webFileInputRef.current?.click();
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showToast('Cần quyền truy cập thư viện ảnh', 'error');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsMultipleSelection: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets?.length) {
+      const uris = result.assets.map((a: ImagePicker.ImagePickerAsset) => a.uri);
+      setSelectedImages((prev) => [...prev, ...uris]);
+    }
+  };
+
+  const handleWebFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    const readFile = (file: File) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+
+    try {
+      const dataUrls = await Promise.all(Array.from(files).map(readFile));
+      setSelectedImages((prev) => [...prev, ...dataUrls]);
+    } catch {
+      showToast('Không đọc được file ảnh', 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
   
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
   const [showAddDentistModal, setShowAddDentistModal] = useState(false);
@@ -504,10 +554,23 @@ export default function CreateExaminationScreen() {
           <Text style={styles.optionalNote}>
             Chọn tất cả ảnh, không cần trước sau
           </Text>
-          <TouchableOpacity style={styles.imageButton}>
+          <TouchableOpacity style={styles.imageButton} onPress={handlePickImages}>
             <Ionicons name="image-outline" size={24} color={colors.primary} />
             <Text style={styles.imageButtonText}>Chọn ảnh</Text>
           </TouchableOpacity>
+          {Platform.OS === 'web' && (
+            <input
+              ref={webFileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={handleWebFiles}
+            />
+          )}
+          {selectedImages.length > 0 && (
+            <Text style={styles.optionalNote}>Đã chọn {selectedImages.length} ảnh</Text>
+          )}
         </Card>
 
         {/* Follow-up Schedule */}
@@ -1048,6 +1111,14 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.medium,
     color: colors.primary,
+  },
+  webScannerBox: {
+    width: '100%',
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.divider,
+    marginTop: spacing.sm,
   },
   followUpDatesList: {
     gap: spacing.sm,
