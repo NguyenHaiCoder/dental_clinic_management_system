@@ -15,7 +15,7 @@ export default function CreatePatientScreen() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [qrText, setQrText] = useState('');
-  const [WebQrReader, setWebQrReader] = useState<any>(null);
+  const [WebQrScanner, setWebQrScanner] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -36,14 +36,12 @@ export default function CreatePatientScreen() {
 
   useEffect(() => {
     if (Platform.OS === 'web') {
-      import('react-qr-reader')
+      import('@yudiel/react-qr-scanner')
         .then((mod) => {
-          const Comp = (mod as any).QrReader || (mod as any).default || null;
-          setWebQrReader(() => Comp);
+          const Comp = (mod as any).QrScanner || (mod as any).default || null;
+          setWebQrScanner(() => Comp);
         })
-        .catch(() => {
-          setWebQrReader(null);
-        });
+        .catch(() => setWebQrScanner(null));
     }
   }, []);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -265,18 +263,18 @@ export default function CreatePatientScreen() {
           </View>
           {Platform.OS === 'web' ? (
           <View style={styles.permissionBox}>
-            {WebQrReader ? (
+            {WebQrScanner ? (
               <View style={styles.webScannerBox}>
                 <Text style={styles.permissionText}>Quét QR bằng camera (web)</Text>
-                <WebQrReader
-                  constraints={{ facingMode: 'environment' }}
-                  onResult={(result: any, error: any) => {
-                    if (!!result) {
-                      const text = result?.text || '';
-                      if (text) applyParsedQR(text);
-                    }
+                <WebQrScanner
+                  onDecode={(result: string) => {
+                    if (result) applyParsedQR(result);
                   }}
+                  onError={() => {}}
+                  constraints={{ facingMode: 'environment' }}
+                  containerStyle={{ width: '100%' }}
                   videoStyle={{ width: '100%' }}
+                  scanDelay={300}
                 />
               </View>
             ) : (
