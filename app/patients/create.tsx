@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
@@ -15,7 +15,9 @@ export default function CreatePatientScreen() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [qrText, setQrText] = useState('');
-  const [WebQrScanner, setWebQrScanner] = useState<any>(null);
+  const [webScanError, setWebScanError] = useState(false);
+  const webReaderRef = useRef<any>(null);
+  const webVideoRef = useRef<HTMLVideoElement | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -35,14 +37,40 @@ export default function CreatePatientScreen() {
     Platform.OS !== 'web' ? require('expo-barcode-scanner').BarCodeScanner : null;
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      import('@yudiel/react-qr-scanner')
+    if (Platform.OS === 'web' && showScanner) {
+      setWebScanError(false);
+      import('@zxing/browser')
         .then((mod) => {
-          const Comp = (mod as any).QrScanner || (mod as any).default || null;
-          setWebQrScanner(() => Comp);
+          const Reader = (mod as any).BrowserMultiFormatReader || (mod as any).BrowserQRCodeReader;
+          if (!Reader) {
+            setWebScanError(true);
+            return;
+          }
+          const reader = new Reader();
+          webReaderRef.current = reader;
+          reader
+            .decodeFromVideoDevice(
+              undefined,
+              webVideoRef.current,
+              (result: any, err: any) => {
+                if (result?.getText) {
+                  applyParsedQR(result.getText());
+                }
+              }
+            )
+            .catch(() => setWebScanError(true));
         })
-        .catch(() => setWebQrScanner(null));
+        .catch(() => setWebScanError(true));
     }
+
+    return () => {
+      if (webReaderRef.current) {
+        try {
+          webReaderRef.current.reset();
+        } catch {}
+        webReaderRef.current = null;
+      }
+    };
   }, []);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -263,46 +291,42 @@ export default function CreatePatientScreen() {
           </View>
           {Platform.OS === 'web' ? (
           <View style={styles.permissionBox}>
-            {WebQrScanner ? (
-              <View style={styles.webScannerBox}>
-                <Text style={styles.permissionText}>Quét QR bằng camera (web)</Text>
-                <WebQrScanner
-                  onDecode={(result: string) => {
-                    if (result) applyParsedQR(result);
-                  }}
-                  onError={() => {}}
-                  constraints={{ facingMode: 'environment' }}
-                  containerStyle={{ width: '100%' }}
-                  videoStyle={{ width: '100%' }}
-                  scanDelay={300}
-                />
-              </View>
-            ) : (
-              <>
-                <Text style={styles.permissionText}>Camera QR không hỗ trợ, dán dữ liệu:</Text>
-                <Input
-                  label="Dán dữ liệu QR (các trường cách nhau dấu |)"
-                  value={qrText}
-                  onChangeText={setQrText}
-                  placeholder="CCCD|Họ tên|01022000|Nam|Địa chỉ|05052020"
-                  multiline
-                  numberOfLines={3}
-                  style={styles.qrInput}
-                />
-                <Button
-                  title="Parse dữ liệu"
-                  onPress={() => {
-                    if (!qrText.trim()) {
-                      showToast('Dán dữ liệu QR trước', 'error');
-                      return;
-                    }
-                    applyParsedQR(qrText.trim());
-                  }}
-                  fullWidth
-                  style={styles.saveButton}
-                />
-              </>
+            <Text style={styles.permissionText}>Quét QR bằng camera (web)</Text>
+            <View style={styles.webScannerBox}>
+              <video
+                ref={webVideoRef as any}
+                style={{ width: '100%', borderRadius: 12, backgroundColor: '#000' }}
+                playsInline
+                muted
+                autoPlay
+              />
+            </View>
+            {webScanError && (
+              <Text style={[styles.permissionText, { color: colors.error }]}>
+                Không mở được camera, hãy dán dữ liệu QR bên dưới.
+              </Text>
             )}
+            <Input
+              label="Dán dữ liệu QR (các trường cách nhau dấu |)"
+              value={qrText}
+              onChangeText={setQrText}
+              placeholder="CCCD|Họ tên|01022000|Nam|Địa chỉ|05052020"
+              multiline
+              numberOfLines={3}
+              style={styles.qrInput}
+            />
+            <Button
+              title="Parse dữ liệu"
+              onPress={() => {
+                if (!qrText.trim()) {
+                  showToast('Dán dữ liệu QR trước', 'error');
+                  return;
+                }
+                applyParsedQR(qrText.trim());
+              }}
+              fullWidth
+              style={styles.saveButton}
+            />
           </View>
           ) : (
             <>
@@ -431,6 +455,14 @@ const styles = StyleSheet.create({
   },
   qrInput: {
     width: '100%',
+  },
+  webScannerBox: {
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.divider,
+    marginBottom: spacing.sm,
   },
 });
 

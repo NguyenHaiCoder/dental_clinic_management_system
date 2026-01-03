@@ -17,7 +17,7 @@
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
-    "@yudiel/react-qr-scanner": "^1.1.0",
+    "@zxing/browser": "^0.1.5",
     "expo": "~54.0.30",
     "expo-barcode-scanner": "^13.0.1",
     "expo-constants": "~18.0.12",
