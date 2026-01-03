@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BarCodeScanner } from 'expo-barcode-scanner';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
@@ -15,6 +14,7 @@ export default function CreatePatientScreen() {
   const { showToast } = useToast();
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [qrText, setQrText] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -27,6 +27,11 @@ export default function CreatePatientScreen() {
     createdAt: formatDate(getVietnamNow()),
     notes: '',
   });
+
+  // Lazy-load BarCodeScanner only for native to avoid web unsupported warning
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const BarCodeScanner =
+    Platform.OS !== 'web' ? require('expo-barcode-scanner').BarCodeScanner : null;
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const validate = () => {
@@ -68,10 +73,11 @@ export default function CreatePatientScreen() {
 
   useEffect(() => {
     const requestPermission = async () => {
+      if (!BarCodeScanner) return;
       const { status } = await BarCodeScanner.requestPermissionsAsync();
       setHasCameraPermission(status === 'granted');
     };
-    if (showScanner && hasCameraPermission === null) {
+    if (Platform.OS !== 'web' && showScanner && hasCameraPermission === null) {
       requestPermission();
     }
   }, [showScanner, hasCameraPermission]);
@@ -103,6 +109,10 @@ export default function CreatePatientScreen() {
   };
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
+    applyParsedQR(data);
+  };
+
+  const applyParsedQR = (data: string) => {
     try {
       const parsed = parseNationalIdQR(data);
       setFormData((prev) => ({
@@ -239,24 +249,79 @@ export default function CreatePatientScreen() {
               <Ionicons name="close" size={24} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
-          {hasCameraPermission === false && (
+          {Platform.OS === 'web' ? (
             <View style={styles.permissionBox}>
-              <Text style={styles.permissionText}>Không có quyền truy cập camera.</Text>
-              <Button title="Đóng" onPress={() => setShowScanner(false)} />
-            </View>
-          )}
-          {hasCameraPermission === true && (
-            <View style={styles.scannerBox}>
-              <BarCodeScanner
-                onBarCodeScanned={handleBarCodeScanned}
-                style={StyleSheet.absoluteFillObject}
+              <Text style={styles.permissionText}>Camera QR không hỗ trợ trên web.</Text>
+              <Input
+                label="Dán dữ liệu QR (các trường cách nhau dấu |)"
+                value={qrText}
+                onChangeText={setQrText}
+                placeholder="CCCD|Họ tên|01022000|Nam|Địa chỉ|05052020"
+                multiline
+                numberOfLines={3}
+                style={styles.qrInput}
+              />
+              <Button
+                title="Parse dữ liệu"
+                onPress={() => {
+                  if (!qrText.trim()) {
+                    showToast('Dán dữ liệu QR trước', 'error');
+                    return;
+                  }
+                  applyParsedQR(qrText.trim());
+                }}
+                fullWidth
+                style={styles.saveButton}
               />
             </View>
-          )}
-          {hasCameraPermission === null && (
-            <View style={styles.permissionBox}>
-              <Text style={styles.permissionText}>Đang yêu cầu quyền camera...</Text>
-            </View>
+          ) : (
+            <>
+              {hasCameraPermission === false && (
+                <View style={styles.permissionBox}>
+                  <Text style={styles.permissionText}>Không có quyền truy cập camera.</Text>
+                  <Button title="Đóng" onPress={() => setShowScanner(false)} />
+                </View>
+              )}
+              {hasCameraPermission === true && (
+                <View style={styles.scannerBox}>
+                  <BarCodeScanner
+                    onBarCodeScanned={handleBarCodeScanned}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </View>
+              )}
+              {hasCameraPermission === null && (
+                <View style={styles.permissionBox}>
+                  <Text style={styles.permissionText}>Đang yêu cầu quyền camera...</Text>
+                </View>
+              )}
+            <>
+              {!BarCodeScanner && (
+                <View style={styles.permissionBox}>
+                  <Text style={styles.permissionText}>Thiết bị không hỗ trợ scanner.</Text>
+                  <Button title="Đóng" onPress={() => setShowScanner(false)} />
+                </View>
+              )}
+              {BarCodeScanner && hasCameraPermission === false && (
+                <View style={styles.permissionBox}>
+                  <Text style={styles.permissionText}>Không có quyền truy cập camera.</Text>
+                  <Button title="Đóng" onPress={() => setShowScanner(false)} />
+                </View>
+              )}
+              {BarCodeScanner && hasCameraPermission === true && (
+                <View style={styles.scannerBox}>
+                  <BarCodeScanner
+                    onBarCodeScanned={handleBarCodeScanned}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </View>
+              )}
+              {BarCodeScanner && hasCameraPermission === null && (
+                <View style={styles.permissionBox}>
+                  <Text style={styles.permissionText}>Đang yêu cầu quyền camera...</Text>
+                </View>
+              )}
+            </>
           )}
         </SafeAreaView>
       </Modal>
@@ -353,6 +418,9 @@ const styles = StyleSheet.create({
   permissionText: {
     color: colors.textSecondary,
     marginBottom: spacing.md,
+  },
+  qrInput: {
+    width: '100%',
   },
 });
 
