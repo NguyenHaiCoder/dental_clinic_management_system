@@ -56,9 +56,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="services"
         options={{
-          title: 'Dịch vụ',
+          title: 'Vật tư',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="medical-outline" size={size} color={color} />
+            <Ionicons name="cube-outline" size={size} color={color} />
           ),
         }}
       />

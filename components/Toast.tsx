@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { borderRadius, colors, shadows, spacing, typography } from '../constants/theme';
 
 interface ToastProps {
@@ -52,22 +52,15 @@ export default function Toast({
   if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.container}>
-        <View style={[styles.toast, { borderLeftColor: getColor() }]}>
-          <Ionicons name={getIcon()} size={24} color={getColor()} />
-          <Text style={styles.message}>{message}</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container} pointerEvents="box-none">
+      <View style={[styles.toast, { borderLeftColor: getColor() }]} pointerEvents="box-none">
+        <Ionicons name={getIcon()} size={24} color={getColor()} />
+        <Text style={styles.message}>{message}</Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Ionicons name="close" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </View>
   );
 }
 

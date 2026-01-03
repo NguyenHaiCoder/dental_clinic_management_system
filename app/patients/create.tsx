@@ -37,7 +37,15 @@ export default function CreatePatientScreen() {
     Platform.OS !== 'web' ? require('expo-barcode-scanner').BarCodeScanner : null;
 
   useEffect(() => {
-    if (Platform.OS === 'web' && showScanner) {
+    const initWebScanner = async () => {
+      setWebScanError(false);
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      } catch {
+        setWebScanError(true);
+        return;
+      }
+
       setWebScanError(false);
       import('@zxing/browser')
         .then((mod) => {
@@ -61,6 +69,10 @@ export default function CreatePatientScreen() {
             .catch(() => setWebScanError(true));
         })
         .catch(() => setWebScanError(true));
+    };
+
+    if (Platform.OS === 'web' && showScanner) {
+      initWebScanner();
     }
 
     return () => {

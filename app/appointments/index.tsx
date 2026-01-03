@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Card from '../../components/Card';
@@ -12,9 +12,7 @@ import { formatDate } from '../../utils/formatters';
 export default function AppointmentsScreen() {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<'all' | 'scheduled' | 'completed' | 'cancelled'>('all');
-
-  // Mock data - replace with actual data fetching
-  const appointments: Appointment[] = [
+  const [appointments, setAppointments] = useState<Appointment[]>([
     {
       id: '1',
       patientId: '1',
@@ -71,7 +69,17 @@ export default function AppointmentsScreen() {
       status: 'completed',
       createdAt: new Date().toISOString(),
     },
-  ];
+  ]);
+
+  const today = new Date();
+  const isSameDay = (d: string) => {
+    const date = new Date(d);
+    return (
+      date.getFullYear() === today.getFullYear() &&
+      date.getMonth() === today.getMonth() &&
+      date.getDate() === today.getDate()
+    );
+  };
 
   const filteredAppointments = appointments.filter((apt) => {
     if (statusFilter === 'all') return true;
@@ -82,13 +90,36 @@ export default function AppointmentsScreen() {
     return new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime();
   });
 
+  const summaryToday = useMemo(() => {
+    const todayApts = appointments.filter((a) => isSameDay(a.appointmentDate));
+    const followUps = todayApts.filter((a) => (a.content || '').toLowerCase().includes('tái'));
+    return { todayApts, followUps };
+  }, [appointments]);
+
+  const updateStatus = (id: string, status: Appointment['status']) => {
+    setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
+  };
+
+  const handleCheckIn = (id: string) => {
+    updateStatus(id, 'completed');
+  };
+
+  const handleLeave = (id: string) => {
+    updateStatus(id, 'cancelled');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Lịch hẹn</Text>
-          <Text style={styles.subtitle}>Quản lý lịch hẹn tái khám</Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.title}>Lịch hẹn</Text>
+            <Text style={styles.subtitle}>Quản lý lịch hẹn tái khám</Text>
+          </View>
         </View>
         <TouchableOpacity
           onPress={() => router.push('/appointments/create')}
@@ -97,6 +128,21 @@ export default function AppointmentsScreen() {
           <Ionicons name="add-circle" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* Summary box */}
+      <Card style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Tổng quan hôm nay</Text>
+        <Text style={styles.summaryItem}>
+          1. Hôm nay có {summaryToday.todayApts.length} lịch hẹn
+          {summaryToday.todayApts.length > 0 &&
+            ` (${summaryToday.todayApts.map((a) => a.patient?.name).join(', ')})`}
+        </Text>
+        <Text style={styles.summaryItem}>
+          2. Lịch tái khám hôm nay: {summaryToday.followUps.length}{' '}
+          {summaryToday.followUps.length > 0 &&
+            `(${summaryToday.followUps.map((a) => a.patient?.name).join(', ')})`}
+        </Text>
+      </Card>
 
       {/* Filter Buttons */}
       <View style={styles.filterContainer}>
@@ -212,6 +258,25 @@ export default function AppointmentsScreen() {
                   </View>
                 )}
               </View>
+
+              {appointment.status === 'scheduled' && (
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={styles.leaveButton}
+                    onPress={() => handleLeave(appointment.id)}
+                  >
+                    <Ionicons name="log-out-outline" size={18} color={colors.error} />
+                    <Text style={styles.leaveButtonText}>Rời lịch hẹn</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.checkinButton}
+                    onPress={() => handleCheckIn(appointment.id)}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={18} color={colors.cardBackground} />
+                    <Text style={styles.checkinButtonText}>Check-in</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </Card>
           ))
         )}
@@ -235,6 +300,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  backButton: {
+    padding: spacing.xs,
+  },
   title: {
     fontSize: typography.title.mobile,
     fontFamily: typography.fontFamily.bold,
@@ -245,6 +318,21 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.regular,
     color: colors.textSecondary,
+  },
+  summaryCard: {
+    marginHorizontal: layout.screenPadding.mobile,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  summaryTitle: {
+    fontFamily: typography.fontFamily.semiBold,
+    fontSize: typography.fontSize.base,
+    color: colors.textPrimary,
+  },
+  summaryItem: {
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.sm,
   },
   addButton: {
     padding: spacing.xs,
@@ -307,6 +395,42 @@ const styles = StyleSheet.create({
   },
   appointmentDetails: {
     gap: spacing.sm,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  leaveButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.error,
+    backgroundColor: `${colors.error}10`,
+  },
+  leaveButtonText: {
+    color: colors.error,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+  checkinButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: colors.success,
+  },
+  checkinButtonText: {
+    color: colors.cardBackground,
+    fontFamily: typography.fontFamily.semiBold,
   },
   detailRow: {
     flexDirection: 'row',

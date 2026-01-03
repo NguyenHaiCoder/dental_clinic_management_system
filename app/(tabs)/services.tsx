@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Print from 'expo-print';
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -60,6 +61,10 @@ export default function SuppliesScreen() {
     quantity: '',
     date: formatDate(getVietnamNow()),
   });
+  const [historyFilter, setHistoryFilter] = useState({
+    from: formatDate(getVietnamNow()),
+    to: formatDate(getVietnamNow()),
+  });
 
   const filteredInventory = useMemo(() => {
     if (!searchQuery) return inventory;
@@ -73,6 +78,109 @@ export default function SuppliesScreen() {
     const totalExportQty = exports.reduce((sum, e) => sum + e.quantity, 0);
     return { totalStock, totalImportValue, totalExportQty };
   }, [inventory, imports, exports]);
+
+  const parseDMY = (value: string) => {
+    const parts = value.split('-');
+    if (parts.length === 3) {
+      const [dd, mm, yyyy] = parts;
+      return new Date(`${yyyy}-${mm}-${dd}`);
+    }
+    return new Date(value);
+  };
+
+  const handleExportHistory = async () => {
+    const html = generateHistoryHTML(filteredImports, filteredExports);
+    if (Platform.OS === 'web') {
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write(html);
+        win.document.close();
+        win.print();
+      }
+      return;
+    }
+    await Print.printToFileAsync({ html });
+  };
+
+  const generateHistoryHTML = (
+    imp: typeof imports,
+    exp: typeof exports
+  ) => {
+    const renderRows = (rows: any[], type: 'import' | 'export') =>
+      rows
+        .map(
+          (r, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${type === 'import' ? r.date : r.exportDate}</td>
+          <td>${findItemById(r.itemId)?.name || ''}</td>
+          <td>${r.quantity}</td>
+          <td>${type === 'import' ? formatCurrency(r.totalPrice) : ''}</td>
+        </tr>
+      `
+        )
+        .join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8" />
+          <style>
+            body { font-family: Arial, sans-serif; padding: 16px; }
+            h2 { margin: 12px 0; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+            th, td { border: 1px solid #ccc; padding: 8px; font-size: 12px; text-align: left; }
+            th { background: #f5f5f5; }
+          </style>
+        </head>
+        <body>
+          <h2>Lịch sử nhập ( ${historyFilter.from} - ${historyFilter.to} )</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>Ngày</th>
+                <th>Vật tư</th>
+                <th>Số lượng</th>
+                <th>Tổng</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderRows(imp, 'import')}
+            </tbody>
+          </table>
+
+          <h2>Lịch sử xuất ( ${historyFilter.from} - ${historyFilter.to} )</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>STT</th>
+                <th>Ngày</th>
+                <th>Vật tư</th>
+                <th>Số lượng</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${renderRows(exp, 'export')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+  };
+
+  const inRange = (dateStr: string) => {
+    const d = parseDMY(dateStr);
+    if (Number.isNaN(d.getTime())) return true;
+    const from = parseDMY(historyFilter.from);
+    const to = parseDMY(historyFilter.to);
+    to.setHours(23, 59, 59, 999);
+    return d.getTime() >= from.getTime() && d.getTime() <= to.getTime();
+  };
+
+  const filteredImports = imports.filter((imp) => inRange(imp.date));
+  const filteredExports = exports.filter((exp) => inRange(exp.exportDate));
 
   const findItemById = (id: string) => inventory.find((i) => i.id === id);
 
@@ -308,12 +416,33 @@ export default function SuppliesScreen() {
         )}
 
         {/* Lịch sử nhập */}
-        <Text style={styles.sectionTitle}>Lịch sử nhập</Text>
-        {imports.length === 0 ? (
+        <View style={styles.historyHeader}>
+          <Text style={styles.sectionTitle}>Lịch sử nhập / xuất</Text>
+          <View style={styles.historyFilters}>
+            <Input
+              label="Từ ngày"
+              value={historyFilter.from}
+              onChangeText={(text) => setHistoryFilter((p) => ({ ...p, from: text }))}
+              placeholder="dd-mm-yyyy"
+              style={styles.historyInput}
+            />
+            <Input
+              label="Đến ngày"
+              value={historyFilter.to}
+              onChangeText={(text) => setHistoryFilter((p) => ({ ...p, to: text }))}
+              placeholder="dd-mm-yyyy"
+              style={styles.historyInput}
+            />
+            <Button title="Xuất PDF" size="small" onPress={() => handleExportHistory()} />
+          </View>
+        </View>
+
+        <Text style={styles.sectionSubtitle}>Lịch sử nhập</Text>
+        {filteredImports.length === 0 ? (
           <EmptyState icon="download-outline" title="Chưa có nhập kho" message="" />
         ) : (
           <View style={styles.listContainer}>
-            {imports.map((imp) => {
+            {filteredImports.map((imp) => {
               const item = findItemById(imp.itemId);
               return (
                 <Card key={imp.id} style={styles.historyCard}>
@@ -332,12 +461,12 @@ export default function SuppliesScreen() {
         )}
 
         {/* Lịch sử xuất */}
-        <Text style={styles.sectionTitle}>Lịch sử xuất</Text>
-        {exports.length === 0 ? (
+        <Text style={styles.sectionSubtitle}>Lịch sử xuất</Text>
+        {filteredExports.length === 0 ? (
           <EmptyState icon="exit-outline" title="Chưa có xuất kho" message="" />
         ) : (
           <View style={styles.listContainer}>
-            {exports.map((exp) => {
+            {filteredExports.map((exp) => {
               const item = findItemById(exp.itemId);
               return (
                 <Card key={exp.id} style={styles.historyCard}>
@@ -460,6 +589,34 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     gap: spacing.sm,
+  },
+  historyHeader: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  historyFilters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    alignItems: 'flex-end',
+  },
+  historyInput: {
+    width: 160,
+  },
+  historyButton: {
+    alignSelf: 'flex-start',
+  },
+  historyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionSubtitle: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.semiBold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   inventoryCard: {
     padding: spacing.md,
