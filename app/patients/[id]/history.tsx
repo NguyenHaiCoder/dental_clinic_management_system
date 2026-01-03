@@ -34,341 +34,115 @@ export default function PatientHistoryScreen() {
   const patientName = patientData.name;
 
   // Mock examination history - different for each patient
+  // Sử dụng cấu trúc mới từ examinations.tsx
   const mockHistoryData: { [key: string]: Examination[] } = {
     '1': [
     {
       id: '1',
       patientId: id as string,
       date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-      services: [
-        {
-          serviceId: '1',
-          service: {
-            id: '1',
-            name: 'Khám răng tổng quát',
-            price: 200000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 200000,
-          subtotal: 200000,
-        },
-        {
-          serviceId: '2',
-          service: {
-            id: '2',
-            name: 'Lấy cao răng',
-            price: 300000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 300000,
-          subtotal: 300000,
-        },
-      ],
-      diseases: [
-        {
-          diseaseCategoryId: '1',
-          diseaseCategory: {
-            id: '1',
-            name: 'Sâu răng',
-            price: 300000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 300000,
-          subtotal: 300000,
-        },
-      ],
-      medicalNotes: 'Bệnh nhân cần vệ sinh răng miệng tốt hơn. Hẹn tái khám sau 1 tuần.',
-      totalCost: 800000,
-      status: 'completed',
-      dentistName: 'BS. Nguyễn Thị C',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      patientId: id as string,
-      date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
-      services: [
-        {
-          serviceId: '3',
-          service: {
-            id: '3',
-            name: 'Trám răng',
-            price: 500000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 500000,
-          subtotal: 500000,
-        },
-      ],
-      diseases: [
-        {
-          diseaseCategoryId: '2',
-          diseaseCategory: {
-            id: '2',
-            name: 'Viêm nướu',
-            price: 250000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 250000,
-          subtotal: 250000,
-        },
-      ],
-      medicalNotes: 'Điều trị viêm nướu, bệnh nhân cần uống thuốc theo đơn.',
-      totalCost: 750000,
-      status: 'completed',
-      dentistName: 'BS. Lê Văn D',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '3',
-      patientId: id as string,
-      date: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days ago
-      services: [
-        {
-          serviceId: '1',
-          service: {
-            id: '1',
-            name: 'Khám răng tổng quát',
-            price: 200000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 200000,
-          subtotal: 200000,
-        },
-      ],
+      services: [],
       diseases: [],
-      medicalNotes: 'Khám định kỳ, tình trạng răng miệng ổn định.',
+      symptoms: 'Đau răng số 6, sưng nướu',
+      treatmentServices: [
+        { id: '1', serviceName: 'Khám răng', price: 100000 },
+        { id: '2', serviceName: 'Nhổ răng', price: 100000 },
+      ],
+      selectedDentistIds: ['1', '2'],
       totalCost: 200000,
+      paidAmount: 100000,
+      debt: 100000,
       status: 'completed',
-      dentistName: 'BS. Nguyễn Thị C',
+      dentistName: 'BS. Tuyết, BS. Phương',
+      followUpDates: ['03-01-2026', '05-01-2026'],
+      followUpContent: 'Làm tiếp răng số 6, làm tiếp răng số 7',
       createdAt: new Date().toISOString(),
     },
     {
       id: '4',
       patientId: id as string,
-      date: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days ago
-      services: [
-        {
-          serviceId: '2',
-          service: {
-            id: '2',
-            name: 'Lấy cao răng',
-            price: 300000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 300000,
-          subtotal: 300000,
-        },
+      date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
+      services: [],
+      diseases: [],
+      symptoms: 'Răng khôn mọc lệch, đau nhức',
+      treatmentServices: [
+        { id: '1', serviceName: 'Khám răng', price: 100000 },
+        { id: '2', serviceName: 'Nhổ răng khôn', price: 1500000 },
       ],
-      diseases: [
-        {
-          diseaseCategoryId: '1',
-          diseaseCategory: {
-            id: '1',
-            name: 'Sâu răng',
-            price: 300000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 2,
-          price: 300000,
-          subtotal: 600000,
-        },
-      ],
-      medicalNotes: 'Phát hiện 2 răng bị sâu, đã điều trị và trám răng.',
-      totalCost: 900000,
+      selectedDentistIds: ['1'],
+      totalCost: 1600000,
+      paidAmount: 800000,
+      debt: 800000,
       status: 'completed',
-      dentistName: 'BS. Lê Văn D',
+      dentistName: 'BS. Tuyết',
+      followUpDates: ['05-01-2026'],
+      followUpContent: 'Kiểm tra vết thương sau nhổ răng',
       createdAt: new Date().toISOString(),
     },
   ],
   '2': [
     {
-      id: '5',
+      id: '2',
       patientId: '2',
       date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-      services: [
-        {
-          serviceId: '2',
-          service: {
-            id: '2',
-            name: 'Lấy cao răng',
-            price: 300000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 300000,
-          subtotal: 300000,
-        },
+      services: [],
+      diseases: [],
+      symptoms: 'Viêm nướu, chảy máu chân răng',
+      treatmentServices: [
+        { id: '1', serviceName: 'Khám răng', price: 100000 },
+        { id: '2', serviceName: 'Lấy cao răng', price: 200000 },
       ],
-      diseases: [
-        {
-          diseaseCategoryId: '2',
-          diseaseCategory: {
-            id: '2',
-            name: 'Viêm nướu',
-            price: 250000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 250000,
-          subtotal: 250000,
-        },
-      ],
-      medicalNotes: 'Bệnh nhân bị viêm nướu nhẹ, đã điều trị và hướng dẫn vệ sinh răng miệng.',
-      totalCost: 550000,
+      selectedDentistIds: ['2'],
+      totalCost: 300000,
+      paidAmount: 300000,
+      debt: 0,
       status: 'completed',
-      dentistName: 'BS. Lê Văn D',
+      dentistName: 'BS. Phương',
+      followUpDates: ['10-01-2026'],
+      followUpContent: 'Tái khám sau điều trị',
       createdAt: new Date().toISOString(),
     },
     {
-      id: '6',
+      id: '5',
       patientId: '2',
-      date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(), // 20 days ago
-      services: [
-        {
-          serviceId: '1',
-          service: {
-            id: '1',
-            name: 'Khám răng tổng quát',
-            price: 200000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 200000,
-          subtotal: 200000,
-        },
-        {
-          serviceId: '3',
-          service: {
-            id: '3',
-            name: 'Trám răng',
-            price: 500000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 500000,
-          subtotal: 500000,
-        },
-      ],
+      date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+      services: [],
       diseases: [],
-      medicalNotes: 'Khám và trám 1 răng sâu, bệnh nhân cần tái khám sau 2 tuần.',
-      totalCost: 700000,
+      symptoms: 'Răng sứ bị vỡ, cần thay mới',
+      treatmentServices: [
+        { id: '1', serviceName: 'Khám răng', price: 100000 },
+        { id: '2', serviceName: 'Làm răng sứ', price: 3000000 },
+      ],
+      selectedDentistIds: ['2', '3'],
+      totalCost: 3100000,
+      paidAmount: 3100000,
+      debt: 0,
       status: 'completed',
-      dentistName: 'BS. Nguyễn Thị C',
+      dentistName: 'BS. Phương, BS. Bình',
+      followUpDates: ['03-01-2026'],
+      followUpContent: 'Kiểm tra răng sứ mới',
       createdAt: new Date().toISOString(),
     },
   ],
   '3': [
     {
-      id: '4',
+      id: '3',
       patientId: '3',
       date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-      services: [
-        {
-          serviceId: '1',
-          service: {
-            id: '1',
-            name: 'Khám răng tổng quát',
-            price: 200000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 200000,
-          subtotal: 200000,
-        },
-        {
-          serviceId: '3',
-          service: {
-            id: '3',
-            name: 'Trám răng',
-            price: 500000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 2,
-          price: 500000,
-          subtotal: 1000000,
-        },
+      services: [],
+      diseases: [],
+      symptoms: 'Sâu răng số 7, đau nhức',
+      treatmentServices: [
+        { id: '1', serviceName: 'Khám răng', price: 100000 },
+        { id: '2', serviceName: 'Trám răng', price: 500000 },
       ],
-      diseases: [
-        {
-          diseaseCategoryId: '1',
-          diseaseCategory: {
-            id: '1',
-            name: 'Sâu răng',
-            price: 300000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 2,
-          price: 300000,
-          subtotal: 600000,
-        },
-      ],
-      medicalNotes: 'Bệnh nhân mới, phát hiện 2 răng sâu, đã trám răng. Hẹn tái khám sau 1 tháng.',
-      totalCost: 1800000,
+      selectedDentistIds: ['3'],
+      totalCost: 600000,
+      paidAmount: 400000,
+      debt: 200000,
       status: 'completed',
-      dentistName: 'BS. Nguyễn Thị C',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '5',
-      patientId: '3',
-      date: new Date().toISOString(), // Today
-      services: [
-        {
-          serviceId: '2',
-          service: {
-            id: '2',
-            name: 'Lấy cao răng',
-            price: 300000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 300000,
-          subtotal: 300000,
-        },
-      ],
-      diseases: [
-        {
-          diseaseCategoryId: '2',
-          diseaseCategory: {
-            id: '2',
-            name: 'Viêm nướu',
-            price: 250000,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-          },
-          quantity: 1,
-          price: 250000,
-          subtotal: 250000,
-        },
-      ],
-      medicalNotes: 'Khám định kỳ, có dấu hiệu viêm nướu nhẹ, đã điều trị.',
-      totalCost: 550000,
-      status: 'pending',
-      dentistName: 'BS. Lê Văn D',
+      dentistName: 'BS. Bình',
+      followUpDates: [],
       createdAt: new Date().toISOString(),
     },
   ],
@@ -461,45 +235,55 @@ export default function PatientHistoryScreen() {
                   />
                 </View>
 
-                {/* Services */}
-                {exam.services.length > 0 && (
-                  <View style={styles.servicesSection}>
-                    <Text style={styles.sectionLabel}>Dịch vụ:</Text>
-                    {exam.services.map((service, idx) => (
-                      <View key={idx} style={styles.serviceItem}>
-                        <Text style={styles.serviceName}>
-                          • {service.service?.name || 'N/A'}
-                        </Text>
-                        <Text style={styles.servicePrice}>
-                          {formatCurrency(service.subtotal)}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {/* Diseases */}
-                {exam.diseases && exam.diseases.length > 0 && (
-                  <View style={styles.diseasesSection}>
-                    <Text style={styles.sectionLabel}>Mặt bệnh:</Text>
-                    {exam.diseases.map((disease, idx) => (
-                      <View key={idx} style={styles.serviceItem}>
-                        <Text style={styles.serviceName}>
-                          • {disease.diseaseCategory?.name || 'N/A'} (x{disease.quantity})
-                        </Text>
-                        <Text style={styles.servicePrice}>
-                          {formatCurrency(disease.subtotal)}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {/* Medical Notes */}
-                {exam.medicalNotes && (
+                {/* Symptoms */}
+                {exam.symptoms && (
                   <View style={styles.notesSection}>
-                    <Text style={styles.notesLabel}>Ghi chú:</Text>
-                    <Text style={styles.notesText}>{exam.medicalNotes}</Text>
+                    <Text style={styles.notesLabel}>Triệu chứng và chẩn đoán:</Text>
+                    <Text style={styles.notesText}>{exam.symptoms}</Text>
+                  </View>
+                )}
+
+                {/* Treatment Services */}
+                {exam.treatmentServices && exam.treatmentServices.length > 0 && (
+                  <View style={styles.servicesSection}>
+                    <Text style={styles.sectionLabel}>Kế hoạch điều trị:</Text>
+                    {exam.treatmentServices.map((service: any, idx: number) => (
+                      <View key={idx} style={styles.serviceItem}>
+                        <Text style={styles.serviceName}>• {service.serviceName}</Text>
+                        <Text style={styles.servicePrice}>{formatCurrency(service.price)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Payment Info */}
+                <View style={styles.paymentSection}>
+                  <View style={styles.paymentRow}>
+                    <Text style={styles.paymentLabel}>Đã thanh toán:</Text>
+                    <Text style={styles.paymentValue}>
+                      {formatCurrency(exam.paidAmount || 0)}
+                    </Text>
+                  </View>
+                  {exam.debt && exam.debt > 0 && (
+                    <View style={styles.paymentRow}>
+                      <Text style={styles.paymentLabel}>Còn nợ:</Text>
+                      <Text style={[styles.paymentValue, styles.debtValue]}>
+                        {formatCurrency(exam.debt)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Follow-up Dates */}
+                {exam.followUpDates && exam.followUpDates.length > 0 && (
+                  <View style={styles.followUpSection}>
+                    <Text style={styles.sectionLabel}>Lịch tái khám:</Text>
+                    {exam.followUpDates.map((date: string, idx: number) => (
+                      <View key={idx} style={styles.followUpItem}>
+                        <Ionicons name="calendar" size={14} color={colors.primary} />
+                        <Text style={styles.followUpText}>{date}</Text>
+                      </View>
+                    ))}
                   </View>
                 )}
 
@@ -673,6 +457,47 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
     color: colors.textPrimary,
     lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
+  },
+  paymentSection: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  paymentLabel: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.textSecondary,
+  },
+  paymentValue: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.semiBold,
+    color: colors.textPrimary,
+  },
+  debtValue: {
+    color: colors.error,
+  },
+  followUpSection: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  followUpItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  followUpText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.primary,
   },
   examFooter: {
     flexDirection: 'row',

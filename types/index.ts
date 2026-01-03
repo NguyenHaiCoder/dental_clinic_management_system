@@ -8,6 +8,7 @@ export interface Patient {
   address?: string;
   dateOfBirth?: string;
   gender?: 'male' | 'female' | 'other';
+  occupation?: string; // Nghề nghiệp
   notes?: string;
   createdAt: string;
 }
@@ -28,11 +29,23 @@ export interface Examination {
   date: string;
   services: ExaminationService[];
   diseases: ExaminationDisease[];
+  symptoms?: string; // Triệu chứng và chẩn đoán
+  treatmentServices?: Array<{
+    id: string;
+    serviceName: string;
+    price: number;
+  }>; // Kế hoạch điều trị (dịch vụ tự nhập)
+  selectedDentistIds?: string[]; // Danh sách bác sĩ đã chọn
+  relative?: string; // Người thân
   medicalNotes?: string;
   totalCost: number;
-  status: 'completed' | 'pending' | 'cancelled';
+  paidAmount?: number; // Số tiền đã thanh toán
+  debt?: number; // Số tiền còn nợ
+  status: 'completed' | 'pending' | 'cancelled' | 'appointment'; // appointment = có lịch hẹn
   dentistId?: string;
   dentistName?: string;
+  followUpDates?: string[]; // Lịch tái khám
+  followUpContent?: string; // Nội dung tái khám (nội bộ)
   createdAt: string;
 }
 

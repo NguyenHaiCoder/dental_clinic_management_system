@@ -1,86 +1,171 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
 import Input from '../../components/Input';
-import StatusChip from '../../components/StatusChip';
 import { colors, layout, spacing, typography } from '../../constants/theme';
-import { DentalService } from '../../types';
-import { formatCurrency } from '../../utils/formatters';
+import { useToast } from '../../contexts/ToastContext';
+import {
+  InventoryExport,
+  InventoryImport,
+  InventoryItem,
+} from '../../types';
+import { formatCurrency, formatDate, getVietnamNow } from '../../utils/formatters';
 
-export default function ServicesScreen() {
+export default function SuppliesScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [services, setServices] = useState<DentalService[]>([
+  const [inventory, setInventory] = useState<InventoryItem[]>([
+    { id: '1', name: 'Găng tay y tế', unit: 'hộp', stock: 50, createdAt: new Date().toISOString() },
+    { id: '2', name: 'Khẩu trang y tế', unit: 'hộp', stock: 80, createdAt: new Date().toISOString() },
+    { id: '3', name: 'Thuốc tê Lidocain', unit: 'ống', stock: 30, createdAt: new Date().toISOString() },
+  ]);
+  const [imports, setImports] = useState<InventoryImport[]>([
     {
-      id: '1',
-      name: 'Khám răng tổng quát',
-      description: 'Khám và đánh giá tình trạng răng miệng',
-      price: 200000,
-      isActive: true,
+      id: 'imp1',
+      itemId: '1',
+      quantity: 20,
+      importPrice: 120000,
+      totalPrice: 2400000,
+      date: formatDate(getVietnamNow()),
       createdAt: new Date().toISOString(),
+      notes: 'Nhập bổ sung',
     },
+  ]);
+  const [exports, setExports] = useState<InventoryExport[]>([
     {
-      id: '2',
-      name: 'Lấy cao răng',
-      description: 'Làm sạch cao răng và mảng bám',
-      price: 300000,
-      isActive: true,
+      id: 'exp1',
+      itemId: '2',
+      quantity: 5,
+      exportDate: formatDate(getVietnamNow()),
       createdAt: new Date().toISOString(),
-    },
-    {
-      id: '3',
-      name: 'Trám răng',
-      description: 'Trám răng sâu bằng composite',
-      price: 500000,
-      isActive: false,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '4',
-      name: 'Nhổ răng',
-      description: 'Nhổ răng sâu, răng khôn',
-      price: 400000,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '5',
-      name: 'Tẩy trắng răng',
-      description: 'Tẩy trắng răng bằng công nghệ hiện đại',
-      price: 2000000,
-      isActive: true,
-      createdAt: new Date().toISOString(),
+      notes: 'Xuất cho ca khám sáng',
     },
   ]);
 
-  const filteredServices = services.filter((service) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return service.name.toLowerCase().includes(query);
+  const [importForm, setImportForm] = useState({
+    name: '',
+    quantity: '',
+    price: '',
   });
+
+  const [exportForm, setExportForm] = useState({
+    itemId: '',
+    quantity: '',
+    date: formatDate(getVietnamNow()),
+  });
+
+  const filteredInventory = useMemo(() => {
+    if (!searchQuery) return inventory;
+    const q = searchQuery.toLowerCase();
+    return inventory.filter((item) => item.name.toLowerCase().includes(q));
+  }, [inventory, searchQuery]);
+
+  const summary = useMemo(() => {
+    const totalStock = inventory.reduce((sum, i) => sum + i.stock, 0);
+    const totalImportValue = imports.reduce((sum, i) => sum + i.totalPrice, 0);
+    const totalExportQty = exports.reduce((sum, e) => sum + e.quantity, 0);
+    return { totalStock, totalImportValue, totalExportQty };
+  }, [inventory, imports, exports]);
+
+  const findItemById = (id: string) => inventory.find((i) => i.id === id);
+
+  const handleImport = () => {
+    const name = importForm.name.trim();
+    const quantity = Number(importForm.quantity);
+    const price = Number(importForm.price);
+
+    if (!name || quantity <= 0 || price < 0) {
+      showToast('Vui lòng nhập đầy đủ Tên, Số lượng (>0) và Giá nhập', 'error');
+      return;
+    }
+
+    const totalPrice = quantity * price;
+    let targetId = '';
+    setInventory((prev) => {
+      const existing = prev.find((i) => i.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        targetId = existing.id;
+        return prev.map((i) =>
+          i.id === existing.id ? { ...i, stock: i.stock + quantity } : i
+        );
+      }
+      targetId = Date.now().toString();
+      return [
+        ...prev,
+        { id: targetId, name, unit: 'cái', stock: quantity, createdAt: new Date().toISOString() },
+      ];
+    });
+
+    const newImport: InventoryImport = {
+      id: `imp-${Date.now()}`,
+      itemId: targetId,
+      quantity,
+      importPrice: price,
+      totalPrice,
+      date: formatDate(getVietnamNow()),
+      createdAt: new Date().toISOString(),
+    };
+    setImports((prev) => [newImport, ...prev]);
+    setImportForm({ name: '', quantity: '', price: '' });
+    showToast('Đã lưu phiếu nhập vật tư', 'success');
+  };
+
+  const handleExport = () => {
+    const itemId = exportForm.itemId;
+    const quantity = Number(exportForm.quantity);
+    if (!itemId) {
+      showToast('Vui lòng chọn vật tư cần xuất', 'error');
+      return;
+    }
+    if (quantity <= 0) {
+      showToast('Số lượng xuất phải > 0', 'error');
+      return;
+    }
+    const item = findItemById(itemId);
+    if (!item) {
+      showToast('Vật tư không tồn tại', 'error');
+      return;
+    }
+    if (quantity > item.stock) {
+      showToast('Số lượng xuất vượt tồn kho', 'error');
+      return;
+    }
+
+    setInventory((prev) =>
+      prev.map((i) => (i.id === itemId ? { ...i, stock: i.stock - quantity } : i))
+    );
+    const newExport: InventoryExport = {
+      id: `exp-${Date.now()}`,
+      itemId,
+      quantity,
+      exportDate: exportForm.date || formatDate(getVietnamNow()),
+      createdAt: new Date().toISOString(),
+    };
+    setExports((prev) => [newExport, ...prev]);
+    setExportForm({ itemId: '', quantity: '', date: formatDate(getVietnamNow()) });
+    showToast('Đã lưu phiếu xuất vật tư', 'success');
+  };
+
+  const selectedItem = exportForm.itemId ? findItemById(exportForm.itemId) : undefined;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Dịch vụ</Text>
+        <Text style={styles.title}>Vật tư</Text>
         <View style={styles.headerRight}>
           <Button
-            title="Mặt bệnh"
-            onPress={() => router.push('/disease-categories')}
+            title="Nhà cung cấp"
             variant="outline"
             size="small"
-            style={styles.diseaseButton}
-          />
-          <Button
-            title="Thêm mới"
-            onPress={() => router.push('/services/create')}
-            size="small"
+            onPress={() => router.push('/suppliers' as any)}
           />
         </View>
       </View>
@@ -92,49 +177,178 @@ export default function ServicesScreen() {
       >
         {/* Search */}
         <Input
-          placeholder="Tìm dịch vụ theo tên"
+          placeholder="Tìm vật tư theo tên"
           value={searchQuery}
           onChangeText={setSearchQuery}
           leftIcon={<Ionicons name="search-outline" size={20} color={colors.textSecondary} />}
           style={styles.searchInput}
         />
 
-        {/* Services List */}
-        {filteredServices.length === 0 ? (
+        {/* Summary */}
+        <View style={styles.summaryRow}>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Tổng vật tư</Text>
+            <Text style={styles.summaryValue}>{inventory.length}</Text>
+          </Card>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Tồn kho</Text>
+            <Text style={styles.summaryValue}>{summary.totalStock}</Text>
+          </Card>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Tổng nhập</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(summary.totalImportValue)}</Text>
+          </Card>
+          <Card style={styles.summaryCard}>
+            <Text style={styles.summaryLabel}>Tổng xuất (số lượng)</Text>
+            <Text style={styles.summaryValue}>{summary.totalExportQty}</Text>
+          </Card>
+        </View>
+
+        {/* Nhập kho */}
+        <Card style={styles.formCard}>
+          <Text style={styles.sectionTitle}>Nhập kho</Text>
+          <Input
+            label="Tên vật tư"
+            placeholder="Găng tay, khẩu trang..."
+            value={importForm.name}
+            onChangeText={(text) => setImportForm((p) => ({ ...p, name: text }))}
+          />
+          <View style={styles.row}>
+            <Input
+              label="Số lượng nhập"
+              placeholder="VD: 10"
+              value={importForm.quantity}
+              onChangeText={(text) => setImportForm((p) => ({ ...p, quantity: text }))}
+              keyboardType="numeric"
+              style={styles.half}
+            />
+            <Input
+              label="Giá nhập"
+              placeholder="VD: 120000"
+              value={importForm.price}
+              onChangeText={(text) => setImportForm((p) => ({ ...p, price: text }))}
+              keyboardType="numeric"
+              style={styles.half}
+            />
+          </View>
+          <Text style={styles.totalText}>
+            Tổng giá nhập:{' '}
+            <Text style={styles.totalValue}>
+              {importForm.quantity && importForm.price
+                ? formatCurrency(Number(importForm.quantity) * Number(importForm.price))
+                : '0 ₫'}
+            </Text>
+          </Text>
+          <Button title="Lưu phiếu nhập" onPress={handleImport} fullWidth style={styles.saveButton} />
+        </Card>
+
+        {/* Xuất kho */}
+        <Card style={styles.formCard}>
+          <Text style={styles.sectionTitle}>Xuất kho</Text>
+          <Text style={styles.helperText}>Chọn vật tư phía dưới để xuất</Text>
+          <View style={styles.selectedRow}>
+            <Text style={styles.selectedLabel}>Đang chọn:</Text>
+            <Text style={styles.selectedValue}>
+              {selectedItem ? `${selectedItem.name} (tồn: ${selectedItem.stock})` : 'Chưa chọn'}
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Input
+              label="Số lượng xuất"
+              placeholder="VD: 5"
+              value={exportForm.quantity}
+              onChangeText={(text) => setExportForm((p) => ({ ...p, quantity: text }))}
+              keyboardType="numeric"
+              style={styles.half}
+            />
+            <Input
+              label="Ngày xuất"
+              placeholder="dd-mm-yyyy"
+              value={exportForm.date}
+              onChangeText={(text) => setExportForm((p) => ({ ...p, date: text }))}
+              style={styles.half}
+            />
+          </View>
+          <Button title="Lưu phiếu xuất" onPress={handleExport} fullWidth style={styles.saveButton} />
+        </Card>
+
+        {/* Danh sách vật tư */}
+        <Text style={styles.sectionTitle}>Danh sách vật tư</Text>
+        {filteredInventory.length === 0 ? (
           <EmptyState
-            icon="medical-outline"
-            title="Không có dịch vụ"
-            message="Chưa có dịch vụ nào trong hệ thống."
+            icon="cube-outline"
+            title="Chưa có vật tư"
+            message="Hãy nhập kho để thêm vật tư mới."
           />
         ) : (
           <View style={styles.listContainer}>
-            {filteredServices.map((service) => (
+            {filteredInventory.map((item) => (
               <Card
-                key={service.id}
-                style={styles.serviceCard}
-                onPress={() => router.push(`/services/${service.id}`)}
+                key={item.id}
+                style={styles.inventoryCard}
+                onPress={() => setExportForm((p) => ({ ...p, itemId: item.id }))}
               >
-                <View style={styles.serviceHeader}>
-                  <View style={styles.serviceInfo}>
-                    <Text style={styles.serviceName}>{service.name}</Text>
-                    {service.description && (
-                      <Text style={styles.serviceDescription}>{service.description}</Text>
-                    )}
+                <View style={styles.inventoryHeader}>
+                  <View style={styles.inventoryInfo}>
+                    <Text style={styles.inventoryName}>{item.name}</Text>
+                    <Text style={styles.inventoryMeta}>
+                      Tồn kho: {item.stock} {item.unit || 'cái'}
+                    </Text>
                   </View>
-                  <StatusChip
-                    label={service.isActive ? 'Hoạt động' : 'Ngừng hoạt động'}
-                    status={service.isActive ? 'success' : 'error'}
-                  />
-                </View>
-                <View style={styles.serviceFooter}>
-                  <View style={styles.priceContainer}>
-                    <Text style={styles.priceLabel}>Giá:</Text>
-                    <Text style={styles.priceValue}>{formatCurrency(service.price)}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                  <TouchableOpacity
+                    onPress={() => setExportForm((p) => ({ ...p, itemId: item.id }))}
+                    style={styles.selectBadge}
+                  >
+                    <Text style={styles.selectBadgeText}>Chọn xuất</Text>
+                  </TouchableOpacity>
                 </View>
               </Card>
             ))}
+          </View>
+        )}
+
+        {/* Lịch sử nhập */}
+        <Text style={styles.sectionTitle}>Lịch sử nhập</Text>
+        {imports.length === 0 ? (
+          <EmptyState icon="download-outline" title="Chưa có nhập kho" message="" />
+        ) : (
+          <View style={styles.listContainer}>
+            {imports.map((imp) => {
+              const item = findItemById(imp.itemId);
+              return (
+                <Card key={imp.id} style={styles.historyCard}>
+                  <View style={styles.historyRow}>
+                    <Text style={styles.historyTitle}>{item?.name || 'Vật tư'}</Text>
+                    <Text style={styles.historyAmount}>+{imp.quantity}</Text>
+                  </View>
+                  <Text style={styles.historyMeta}>
+                    Giá nhập: {formatCurrency(imp.importPrice)} | Tổng: {formatCurrency(imp.totalPrice)}
+                  </Text>
+                  <Text style={styles.historyMeta}>Ngày: {imp.date}</Text>
+                </Card>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Lịch sử xuất */}
+        <Text style={styles.sectionTitle}>Lịch sử xuất</Text>
+        {exports.length === 0 ? (
+          <EmptyState icon="exit-outline" title="Chưa có xuất kho" message="" />
+        ) : (
+          <View style={styles.listContainer}>
+            {exports.map((exp) => {
+              const item = findItemById(exp.itemId);
+              return (
+                <Card key={exp.id} style={styles.historyCard}>
+                  <View style={styles.historyRow}>
+                    <Text style={styles.historyTitle}>{item?.name || 'Vật tư'}</Text>
+                    <Text style={[styles.historyAmount, { color: colors.error }]}>-{exp.quantity}</Text>
+                  </View>
+                  <Text style={styles.historyMeta}>Ngày: {exp.exportDate}</Text>
+                </Card>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -162,9 +376,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     alignItems: 'center',
   },
-  diseaseButton: {
-    marginRight: spacing.xs,
-  },
   title: {
     fontSize: typography.title.mobile,
     fontFamily: typography.fontFamily.bold,
@@ -180,55 +391,127 @@ const styles = StyleSheet.create({
   searchInput: {
     marginBottom: spacing.md,
   },
+  summaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  summaryCard: {
+    flex: 1,
+    minWidth: '45%',
+    padding: spacing.md,
+  },
+  summaryLabel: {
+    fontSize: typography.fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  summaryValue: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: typography.fontFamily.bold,
+    color: colors.textPrimary,
+  },
+  formCard: {
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.semiBold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  half: {
+    flex: 1,
+  },
+  totalText: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+    color: colors.textSecondary,
+  },
+  totalValue: {
+    fontFamily: typography.fontFamily.bold,
+    color: colors.primary,
+  },
+  saveButton: {
+    marginTop: spacing.sm,
+  },
+  helperText: {
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  selectedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  selectedLabel: {
+    color: colors.textSecondary,
+  },
+  selectedValue: {
+    fontFamily: typography.fontFamily.semiBold,
+    color: colors.textPrimary,
+  },
   listContainer: {
     gap: spacing.sm,
   },
-  serviceCard: {
+  inventoryCard: {
     padding: spacing.md,
   },
-  serviceHeader: {
+  inventoryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  serviceInfo: {
+  inventoryInfo: {
     flex: 1,
-    marginRight: spacing.sm,
   },
-  serviceName: {
+  inventoryName: {
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.semiBold,
     color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
-  serviceDescription: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
+  inventoryMeta: {
     color: colors.textSecondary,
-    lineHeight: typography.lineHeight.relaxed * typography.fontSize.sm,
+    fontSize: typography.fontSize.sm,
   },
-  serviceFooter: {
+  selectBadge: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: `${colors.primary}15`,
+  },
+  selectBadgeText: {
+    color: colors.primary,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+  historyCard: {
+    padding: spacing.md,
+  },
+  historyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    marginBottom: spacing.xs,
   },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+  historyTitle: {
+    fontFamily: typography.fontFamily.semiBold,
+    color: colors.textPrimary,
   },
-  priceLabel: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.textSecondary,
-  },
-  priceValue: {
-    fontSize: typography.fontSize.lg,
+  historyAmount: {
     fontFamily: typography.fontFamily.bold,
-    color: colors.primary,
+    color: colors.success,
+  },
+  historyMeta: {
+    color: colors.textSecondary,
+    fontSize: typography.fontSize.sm,
   },
 });

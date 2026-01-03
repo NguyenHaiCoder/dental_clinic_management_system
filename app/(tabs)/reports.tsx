@@ -100,7 +100,7 @@ export default function ReportsScreen() {
         revenue: 400000 * 1 * days,
         count: 1 * days,
       },
-    ];
+  ];
   };
 
   const revenueByService = calculateRevenueByService();

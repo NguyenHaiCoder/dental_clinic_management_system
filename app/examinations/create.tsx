@@ -1,10 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,291 +16,197 @@ import Card from '../../components/Card';
 import Input from '../../components/Input';
 import { borderRadius, colors, layout, shadows, spacing, typography } from '../../constants/theme';
 import { useToast } from '../../contexts/ToastContext';
-import { formatCurrency, formatDate, getTodayDate } from '../../utils/formatters';
+import { formatCurrency, getTodayDate } from '../../utils/formatters';
 
-interface CustomService {
+interface TreatmentService {
   id: string;
-  name: string;
+  serviceName: string;
   price: number;
-  isCustom: true;
-}
-
-interface CustomDisease {
-  id: string;
-  name: string;
-  price: number;
-  isCustom: true;
 }
 
 export default function CreateExaminationScreen() {
   const router = useRouter();
   const { showToast } = useToast();
+  
   const [formData, setFormData] = useState({
     patientId: '',
     date: getTodayDate(),
-    services: [] as string[],
-    diseases: [] as string[],
-    medicalNotes: '',
-    dentistName: '',
+    relative: '', // Người thân
+    symptoms: '', // Triệu chứng và chẩn đoán
+    treatmentServices: [] as TreatmentService[],
+    selectedDentistIds: [] as string[], // Có thể chọn nhiều bác sĩ
+    paidAmount: 0,
+    followUpDates: [] as string[], // Lịch tái khám
+    followUpContent: '', // Nội dung tái khám (nội bộ)
+    customerSignature: '', // Chữ ký khách hàng
+    dentistSignature: '', // Chữ ký bác sĩ
   });
-  const [totalCost, setTotalCost] = useState(0);
-  const [paidAmount, setPaidAmount] = useState(0);
+  
   const [patientSearchQuery, setPatientSearchQuery] = useState('');
-  const [showCustomServiceModal, setShowCustomServiceModal] = useState(false);
-  const [showCustomDiseaseModal, setShowCustomDiseaseModal] = useState(false);
-  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
-  const [editingDiseaseId, setEditingDiseaseId] = useState<string | null>(null);
-  const [customServiceForm, setCustomServiceForm] = useState({ name: '', price: '' });
-  const [customDiseaseForm, setCustomDiseaseForm] = useState({ name: '', price: '' });
-  
-  // Refs for auto focus
-  const serviceNameInputRef = useRef<TextInput>(null);
-  const diseaseNameInputRef = useRef<TextInput>(null);
-  
-  // Auto focus when modal opens
-  useEffect(() => {
-    if (showCustomServiceModal && serviceNameInputRef.current) {
-      // Small delay to ensure modal is fully rendered
-      setTimeout(() => {
-        serviceNameInputRef.current?.focus();
-      }, 100);
-    }
-  }, [showCustomServiceModal]);
-  
-  useEffect(() => {
-    if (showCustomDiseaseModal && diseaseNameInputRef.current) {
-      // Small delay to ensure modal is fully rendered
-      setTimeout(() => {
-        diseaseNameInputRef.current?.focus();
-      }, 100);
-    }
-  }, [showCustomDiseaseModal]);
+  const [showAddDentistModal, setShowAddDentistModal] = useState(false);
+  const [showEditDentistModal, setShowEditDentistModal] = useState(false);
+  const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
+  const [newDentistForm, setNewDentistForm] = useState({ name: '' });
+  const [showDentistActions, setShowDentistActions] = useState(false);
 
-  // Mock data - replace with actual data fetching
+  // Mock data
   const allPatients = [
     { id: '1', name: 'Nguyễn Văn A', phone: '0901234567' },
     { id: '2', name: 'Trần Thị B', phone: '0907654321' },
     { id: '3', name: 'Lê Văn C', phone: '0912345678' },
   ];
 
-  const baseServices = [
-    { id: '1', name: 'Khám răng tổng quát', price: 200000, isCustom: false },
-    { id: '2', name: 'Lấy cao răng', price: 300000, isCustom: false },
-    { id: '3', name: 'Trám răng', price: 500000, isCustom: false },
-    { id: '4', name: 'Nhổ răng', price: 400000, isCustom: false },
-    { id: '5', name: 'Tẩy trắng răng', price: 2000000, isCustom: false },
-  ];
+  const [dentists, setDentists] = useState([
+    { id: '1', name: 'BS. Tuyết' },
+    { id: '2', name: 'BS. Phương' },
+    { id: '3', name: 'BS. Bình' },
+  ]);
 
-  const baseDiseaseCategories = [
-    { id: '1', name: 'Sâu răng', price: 300000, isCustom: false },
-    { id: '2', name: 'Viêm nướu', price: 250000, isCustom: false },
-    { id: '3', name: 'Răng khôn', price: 1500000, isCustom: false },
-    { id: '4', name: 'Viêm tủy răng', price: 800000, isCustom: false },
-    { id: '5', name: 'Nứt răng', price: 600000, isCustom: false },
-  ];
-
-  const [customServices, setCustomServices] = useState<CustomService[]>([]);
-  const [customDiseases, setCustomDiseases] = useState<CustomDisease[]>([]);
-
-  const allServices = [...baseServices, ...customServices];
-  const allDiseases = [...baseDiseaseCategories, ...customDiseases];
-
-  // Filter patients by name or last 3 digits of phone
+  // Filter patients by search query
   const filteredPatients = allPatients.filter((patient) => {
-    if (!patientSearchQuery) return true;
-    const query = patientSearchQuery.trim();
+    if (!patientSearchQuery.trim()) return false;
+    const query = patientSearchQuery.trim().toLowerCase();
+    const nameMatch = patient.name.toLowerCase().includes(query);
+    const phoneMatch = patient.phone.includes(query);
     const isNumericQuery = /^\d+$/.test(query);
-    const nameMatch = patient.name.toLowerCase().includes(query.toLowerCase());
-    
-    let phoneMatch = false;
+    let phoneLast3Match = false;
     if (isNumericQuery && query.length <= 3) {
-      // If query is numeric and length <= 3, ONLY check last 3 digits (exact match or substring)
       const phoneLast3 = patient.phone.slice(-3);
-      phoneMatch = phoneLast3 === query || phoneLast3.includes(query);
-    } else if (isNumericQuery && query.length > 3) {
-      // If query is numeric and length > 3, check full phone number
-      phoneMatch = patient.phone.includes(query);
-    } else {
-      // If query is not numeric, check name only (don't search in phone)
-      phoneMatch = false;
+      phoneLast3Match = phoneLast3 === query || phoneLast3.includes(query);
     }
-    
-    return nameMatch || phoneMatch;
+    return nameMatch || phoneMatch || phoneLast3Match;
   });
 
   const selectedPatient = allPatients.find((p) => p.id === formData.patientId);
 
-  const calculateTotal = (
-    selectedServices: string[],
-    selectedDiseases: string[],
-    additionalService?: CustomService,
-    additionalDisease?: CustomDisease
-  ) => {
-    // Include additional service/disease if provided (for newly created items)
-    const servicesToCheck = additionalService
-      ? [...allServices, additionalService]
-      : allServices;
-    const diseasesToCheck = additionalDisease
-      ? [...allDiseases, additionalDisease]
-      : allDiseases;
+  // Calculate total cost
+  const totalCost = formData.treatmentServices.reduce((sum, service) => sum + (service.price || 0), 0);
+  const debt = Math.max(0, totalCost - formData.paidAmount);
 
-    const servicesTotal = selectedServices.reduce((sum, id) => {
-      const s = servicesToCheck.find((sv) => sv.id === id);
-      return sum + (s?.price || 0);
-    }, 0);
-    const diseasesTotal = selectedDiseases.reduce((sum, id) => {
-      const d = diseasesToCheck.find((dc) => dc.id === id);
-      return sum + (d?.price || 0);
-    }, 0);
-    return servicesTotal + diseasesTotal;
+  // Handle add new service row
+  const handleAddServiceRow = () => {
+    const newService: TreatmentService = {
+      id: `service-${Date.now()}`,
+      serviceName: '',
+      price: 0,
+    };
+    setFormData((prev) => ({
+      ...prev,
+      treatmentServices: [...prev.treatmentServices, newService],
+    }));
   };
 
-  const handleServiceToggle = (serviceId: string, additionalService?: CustomService) => {
+  // Handle update service
+  const handleUpdateService = (serviceId: string, field: 'serviceName' | 'price', value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      treatmentServices: prev.treatmentServices.map((s) =>
+        s.id === serviceId
+          ? {
+              ...s,
+              [field]: field === 'price' ? parseFloat(value) || 0 : value,
+            }
+          : s
+      ),
+    }));
+  };
+
+  // Handle delete service
+  const handleDeleteService = (serviceId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      treatmentServices: prev.treatmentServices.filter((s) => s.id !== serviceId),
+    }));
+  };
+
+  // Handle toggle dentist selection
+  const handleToggleDentist = (dentistId: string) => {
     setFormData((prev) => {
-      const newServices = prev.services.includes(serviceId)
-        ? prev.services.filter((id) => id !== serviceId)
-        : [...prev.services, serviceId];
-
-      const total = calculateTotal(newServices, prev.diseases, additionalService);
-      setTotalCost(total);
-
-      return { ...prev, services: newServices };
+      const isSelected = prev.selectedDentistIds.includes(dentistId);
+      return {
+        ...prev,
+        selectedDentistIds: isSelected
+          ? prev.selectedDentistIds.filter((id) => id !== dentistId)
+          : [...prev.selectedDentistIds, dentistId],
+      };
     });
   };
 
-  const handleDiseaseToggle = (diseaseId: string, additionalDisease?: CustomDisease) => {
-    setFormData((prev) => {
-      const newDiseases = prev.diseases.includes(diseaseId)
-        ? prev.diseases.filter((id) => id !== diseaseId)
-        : [...prev.diseases, diseaseId];
-
-      const total = calculateTotal(prev.services, newDiseases, undefined, additionalDisease);
-      setTotalCost(total);
-
-      return { ...prev, diseases: newDiseases };
-    });
+  const handleAddFollowUpDate = () => {
+    // Add empty date string, user will input manually
+    setFormData((prev) => ({
+      ...prev,
+      followUpDates: [...prev.followUpDates, ''],
+    }));
   };
 
-  const handleAddCustomService = () => {
-    if (!customServiceForm.name.trim()) {
-      showToast('Vui lòng nhập tên dịch vụ', 'error');
-      return;
-    }
-    if (!customServiceForm.price.trim() || parseFloat(customServiceForm.price) <= 0) {
-      showToast('Vui lòng nhập giá hợp lệ', 'error');
+  const handleUpdateFollowUpDate = (index: number, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      followUpDates: prev.followUpDates.map((date, i) => (i === index ? value : date)),
+    }));
+  };
+
+  const handleAddDentist = () => {
+    if (!newDentistForm.name.trim()) {
+      showToast('Vui lòng nhập tên bác sĩ', 'error');
       return;
     }
 
-    if (editingServiceId) {
-      // Update existing custom service
-      const updatedService = {
-        id: editingServiceId,
-        name: customServiceForm.name,
-        price: parseFloat(customServiceForm.price),
-        isCustom: true as const,
-      };
-      setCustomServices(
-        customServices.map((s) =>
-          s.id === editingServiceId ? updatedService : s
-        )
+    const newDentist = {
+      id: `dentist-${Date.now()}`,
+      name: newDentistForm.name.trim(),
+    };
+    setDentists((prev) => [...prev, newDentist]);
+    setNewDentistForm({ name: '' });
+    setShowAddDentistModal(false);
+    showToast('Đã thêm bác sĩ mới', 'success');
+  };
+
+  const handleEditDentist = (dentistId: string) => {
+    const dentist = dentists.find((d) => d.id === dentistId);
+    if (dentist) {
+      setEditingDentistId(dentistId);
+      setNewDentistForm({ name: dentist.name });
+      setShowEditDentistModal(true);
+    }
+  };
+
+  const handleUpdateDentist = () => {
+    if (!newDentistForm.name.trim()) {
+      showToast('Vui lòng nhập tên bác sĩ', 'error');
+      return;
+    }
+
+    if (editingDentistId) {
+      setDentists((prev) =>
+        prev.map((d) => (d.id === editingDentistId ? { ...d, name: newDentistForm.name.trim() } : d))
       );
-      // Recalculate total if this service is currently selected
-      if (formData.services.includes(editingServiceId)) {
-        setFormData((prev) => {
-          const total = calculateTotal(prev.services, prev.diseases);
-          setTotalCost(total);
-          return prev;
-        });
-      }
-      setEditingServiceId(null);
-    } else {
-      // Create new custom service
-      const newService: CustomService = {
-        id: `custom-${Date.now()}`,
-        name: customServiceForm.name,
-        price: parseFloat(customServiceForm.price),
-        isCustom: true,
-      };
-      setCustomServices([...customServices, newService]);
-      // Auto-select the new service and calculate total with the new service
-      handleServiceToggle(newService.id, newService);
-    }
-
-    setCustomServiceForm({ name: '', price: '' });
-    setShowCustomServiceModal(false);
-    // Note: totalCost is automatically updated by handleServiceToggle
-  };
-
-  const handleAddCustomDisease = () => {
-    if (!customDiseaseForm.name.trim()) {
-      showToast('Vui lòng nhập tên mặt bệnh', 'error');
-      return;
-    }
-    if (!customDiseaseForm.price.trim() || parseFloat(customDiseaseForm.price) <= 0) {
-      showToast('Vui lòng nhập giá hợp lệ', 'error');
-      return;
-    }
-
-    if (editingDiseaseId) {
-      // Update existing custom disease
-      const updatedDisease = {
-        id: editingDiseaseId,
-        name: customDiseaseForm.name,
-        price: parseFloat(customDiseaseForm.price),
-        isCustom: true as const,
-      };
-      setCustomDiseases(
-        customDiseases.map((d) =>
-          d.id === editingDiseaseId ? updatedDisease : d
-        )
-      );
-      // Recalculate total if this disease is currently selected
-      if (formData.diseases.includes(editingDiseaseId)) {
-        setFormData((prev) => {
-          const total = calculateTotal(prev.services, prev.diseases);
-          setTotalCost(total);
-          return prev;
-        });
-      }
-      setEditingDiseaseId(null);
-    } else {
-      // Create new custom disease
-      const newDisease: CustomDisease = {
-        id: `custom-${Date.now()}`,
-        name: customDiseaseForm.name,
-        price: parseFloat(customDiseaseForm.price),
-        isCustom: true,
-      };
-      setCustomDiseases([...customDiseases, newDisease]);
-      // Auto-select the new disease and calculate total with the new disease
-      handleDiseaseToggle(newDisease.id, newDisease);
-    }
-
-    setCustomDiseaseForm({ name: '', price: '' });
-    setShowCustomDiseaseModal(false);
-    // Note: totalCost is automatically updated by handleDiseaseToggle above
-  };
-
-  const handleEditCustomService = (serviceId: string) => {
-    const service = customServices.find((s) => s.id === serviceId);
-    if (service) {
-      setCustomServiceForm({ name: service.name, price: service.price.toString() });
-      setEditingServiceId(serviceId);
-      setShowCustomServiceModal(true);
+      setNewDentistForm({ name: '' });
+      setEditingDentistId(null);
+      setShowEditDentistModal(false);
+      showToast('Đã cập nhật bác sĩ', 'success');
     }
   };
 
-  const handleEditCustomDisease = (diseaseId: string) => {
-    const disease = customDiseases.find((d) => d.id === diseaseId);
-    if (disease) {
-      setCustomDiseaseForm({ name: disease.name, price: disease.price.toString() });
-      setEditingDiseaseId(diseaseId);
-      setShowCustomDiseaseModal(true);
+  const handleDeleteDentist = (dentistId: string) => {
+    // Kiểm tra xem bác sĩ có đang được chọn không
+    if (formData.selectedDentistIds.includes(dentistId)) {
+      // Bỏ chọn bác sĩ trước khi xóa
+      setFormData((prev) => ({
+        ...prev,
+        selectedDentistIds: prev.selectedDentistIds.filter((id) => id !== dentistId),
+      }));
     }
+    setDentists((prev) => prev.filter((d) => d.id !== dentistId));
+    showToast('Đã xóa bác sĩ', 'success');
   };
 
-  const handleSetToday = () => {
-    setFormData({ ...formData, date: getTodayDate() });
+  const handleRemoveFollowUpDate = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      followUpDates: prev.followUpDates.filter((_, i) => i !== index),
+    }));
   };
 
   const handleSave = () => {
@@ -311,8 +215,8 @@ export default function CreateExaminationScreen() {
       return;
     }
 
-    if (formData.services.length === 0 && formData.diseases.length === 0) {
-      showToast('Vui lòng chọn ít nhất một dịch vụ hoặc mặt bệnh', 'error');
+    if (formData.treatmentServices.length === 0) {
+      showToast('Vui lòng thêm ít nhất một dịch vụ điều trị', 'error');
       return;
     }
 
@@ -330,7 +234,7 @@ export default function CreateExaminationScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Tạo phiếu khám bệnh</Text>
+        <Text style={styles.title}>Tạo hồ sơ khám chữa bệnh</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -339,310 +243,218 @@ export default function CreateExaminationScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Patient Selection with Search */}
+        {/* Patient Selection */}
         <Card>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Thông tin bệnh nhân *</Text>
-            {selectedPatient && (
-              <TouchableOpacity
-                onPress={() => router.push(`/patients/${selectedPatient.id}`)}
-                style={styles.viewPatientButton}
-              >
-                <Ionicons name="eye-outline" size={16} color={colors.primary} />
-                <Text style={styles.viewPatientText}>Xem chi tiết</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
+          <Text style={styles.sectionTitle}>I. Thông tin bệnh nhân *</Text>
           <Input
-            placeholder="Tìm theo tên hoặc 3 số cuối số điện thoại"
             value={patientSearchQuery}
             onChangeText={setPatientSearchQuery}
-            leftIcon={<Ionicons name="search-outline" size={20} color={colors.textSecondary} />}
-            style={styles.searchInput}
+            placeholder="Tìm kiếm theo tên hoặc 3 số cuối SĐT"
+            leftIcon={<Ionicons name="search" size={20} color={colors.textSecondary} />}
           />
+          
+          {patientSearchQuery.trim() && filteredPatients.length > 0 && (
+            <View style={styles.patientList}>
+              {filteredPatients.map((patient) => (
+                <TouchableOpacity
+                  key={patient.id}
+                  style={[
+                    styles.patientItem,
+                    formData.patientId === patient.id && styles.patientItemSelected,
+                  ]}
+                  onPress={() => {
+                    setFormData((prev) => ({ ...prev, patientId: patient.id }));
+                    setPatientSearchQuery('');
+                  }}
+                >
+                  <View style={styles.patientInfo}>
+                    <Text style={styles.patientName}>{patient.name}</Text>
+                    <Text style={styles.patientPhone}>{patient.phone}</Text>
+                  </View>
+                  {formData.patientId === patient.id && (
+                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           {selectedPatient && (
-            <View style={styles.selectedPatientCard}>
-              <View style={styles.selectedPatientInfo}>
-                <Ionicons name="person-circle" size={32} color={colors.primary} />
-                <View style={styles.selectedPatientDetails}>
-                  <Text style={styles.selectedPatientName}>{selectedPatient.name}</Text>
-                  <Text style={styles.selectedPatientPhone}>{selectedPatient.phone}</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setFormData({ ...formData, patientId: '' });
-                  setPatientSearchQuery('');
-                }}
-              >
-                <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
+            <View style={styles.selectedPatient}>
+              <Text style={styles.selectedPatientText}>
+                Đã chọn: {selectedPatient.name} - {selectedPatient.phone}
+              </Text>
             </View>
           )}
 
-          {!selectedPatient && (
-            <View style={styles.patientList}>
-              {filteredPatients.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons name="person-outline" size={32} color={colors.textTertiary} />
-                  <Text style={styles.emptyStateText}>
-                    {patientSearchQuery
-                      ? 'Không tìm thấy bệnh nhân'
-                      : 'Nhập tên hoặc 3 số cuối số điện thoại để tìm kiếm'}
+          <Input
+            label="Người thân"
+            value={formData.relative}
+            onChangeText={(text) => setFormData((prev) => ({ ...prev, relative: text }))}
+            placeholder="Con-0341231231"
+            style={styles.relativeInput}
+          />
+        </Card>
+
+        {/* Symptoms and Diagnosis */}
+        <Card>
+          <Text style={styles.sectionTitle}>II. Triệu chứng và chẩn đoán</Text>
+          <TextInput
+            style={styles.textArea}
+            value={formData.symptoms}
+            onChangeText={(text) => setFormData((prev) => ({ ...prev, symptoms: text }))}
+            placeholder="Bác sĩ tự ghi triệu chứng và chẩn đoán..."
+            multiline
+            numberOfLines={6}
+            textAlignVertical="top"
+          />
+        </Card>
+
+        {/* Treatment Plan */}
+        <Card>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>III. Kế hoạch điều trị (kèm giá tiền)</Text>
+            <TouchableOpacity onPress={handleAddServiceRow} style={styles.addButton}>
+              <Ionicons name="add-circle" size={20} color={colors.primary} />
+              <Text style={styles.addButtonText}>Thêm dòng</Text>
+            </TouchableOpacity>
+          </View>
+
+          {formData.treatmentServices.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="document-outline" size={48} color={colors.textTertiary} />
+              <Text style={styles.emptyText}>Chưa có dịch vụ nào</Text>
+            </View>
+          ) : (
+            <View style={styles.table}>
+              {/* Table Header */}
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableCell, styles.tableHeaderText, { width: '10%' }]}>
+                  STT
+                </Text>
+                <Text style={[styles.tableCell, styles.tableHeaderText, { width: '50%' }]}>
+                  Dịch vụ
+                </Text>
+                <Text style={[styles.tableCell, styles.tableHeaderText, { width: '30%' }]}>
+                  Giá tiền
+                </Text>
+                <View style={{ width: '10%' }} />
+              </View>
+
+              {/* Table Rows with Inputs */}
+              {formData.treatmentServices.map((service, index) => (
+                <View key={service.id} style={styles.tableRow}>
+                  <Text style={[styles.tableCell, styles.tableCellSTT, { width: '10%' }]}>
+                    {index + 1}
                   </Text>
-                  <Button
-                    title="Đăng ký bệnh nhân mới"
-                    onPress={() => router.push('/patients/create')}
-                    variant="outline"
-                    size="small"
-                    style={styles.newPatientButton}
-                  />
+                  <View style={[styles.tableCellInput, { width: '50%' }]}>
+                    <TextInput
+                      style={styles.serviceInput}
+                      value={service.serviceName}
+                      onChangeText={(text) =>
+                        handleUpdateService(service.id, 'serviceName', text)
+                      }
+                      placeholder="Nhập tên dịch vụ"
+                      multiline
+                    />
+                  </View>
+                  <View style={[styles.tableCellInput, { width: '30%' }]}>
+                    <TextInput
+                      style={styles.priceInput}
+                      value={service.price > 0 ? service.price.toString() : ''}
+                      onChangeText={(text) => handleUpdateService(service.id, 'price', text)}
+                      placeholder="Giá tiền"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={[styles.tableCellActions, { width: '10%' }]}>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteService(service.id)}
+                      style={styles.actionButton}
+                    >
+                      <Ionicons name="trash" size={18} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              ) : (
-                filteredPatients.map((patient) => (
+              ))}
+            </View>
+          )}
+
+          {/* Dentist Selection - Below the table */}
+          {formData.treatmentServices.length > 0 && (
+            <View style={styles.dentistSelectionContainer}>
+              <View style={styles.dentistSelectionHeader}>
+                <TouchableOpacity
+                  style={styles.dentistLabelContainer}
+                  onPress={() => setShowDentistActions(!showDentistActions)}
+                >
+                  <Text style={styles.dentistSelectionLabel}>Chọn bác sĩ (có thể chọn nhiều):</Text>
+                  <Ionicons
+                    name={showDentistActions ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+                {showDentistActions && (
                   <TouchableOpacity
-                    key={patient.id}
-                    style={styles.patientOption}
+                    style={styles.addDentistHeaderButton}
                     onPress={() => {
-                      setFormData({ ...formData, patientId: patient.id });
-                      setPatientSearchQuery(patient.name);
+                      setEditingDentistId(null);
+                      setNewDentistForm({ name: '' });
+                      setShowAddDentistModal(true);
                     }}
                   >
-                    <View style={styles.patientOptionContent}>
-                      <Text style={styles.patientOptionName}>{patient.name}</Text>
-                      <View style={styles.patientOptionMeta}>
-                        <Ionicons name="call-outline" size={14} color={colors.textSecondary} />
-                        <Text style={styles.patientOptionPhone}>{patient.phone}</Text>
-                        <Text style={styles.patientOptionLast3}>
-                          (Cuối: {patient.phone.slice(-3)})
-                        </Text>
-                      </View>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                    <Ionicons name="add-circle" size={20} color={colors.primary} />
+                    <Text style={styles.addDentistHeaderText}>Thêm</Text>
                   </TouchableOpacity>
-                ))
-              )}
-            </View>
-          )}
-        </Card>
-
-        {/* Date Selection */}
-        <Card>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Ngày khám</Text>
-            <TouchableOpacity onPress={handleSetToday} style={styles.todayButton}>
-              <Ionicons name="calendar-outline" size={16} color={colors.primary} />
-              <Text style={styles.todayButtonText}>Hôm nay</Text>
-            </TouchableOpacity>
-          </View>
-          <Input
-            value={formData.date}
-            onChangeText={(text) => setFormData({ ...formData, date: text })}
-            placeholder="dd-mm-yyyy"
-            leftIcon={<Ionicons name="calendar" size={20} color={colors.textSecondary} />}
-          />
-          <Text style={styles.dateHint}>
-            {formData.date && `Ngày đã chọn: ${formatDate(formData.date)}`}
-          </Text>
-        </Card>
-
-        {/* Services Selection */}
-        <Card>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Dịch vụ khám</Text>
-            <TouchableOpacity
-              onPress={() => setShowCustomServiceModal(true)}
-              style={styles.addButton}
-            >
-              <Ionicons name="add-circle" size={20} color={colors.primary} />
-              <Text style={styles.addButtonText}>Thêm dịch vụ</Text>
-            </TouchableOpacity>
-          </View>
-
-          {formData.services.length > 0 && (
-            <View style={styles.selectedItemsContainer}>
-              <Text style={styles.selectedItemsLabel}>Đã chọn:</Text>
-              {formData.services.map((serviceId) => {
-                const service = allServices.find((s) => s.id === serviceId);
-                if (!service) return null;
-                return (
-                  <View key={serviceId} style={styles.selectedItem}>
-                    <Text style={styles.selectedItemName}>{service.name}</Text>
-                    <View style={styles.selectedItemRight}>
-                      <Text style={styles.selectedItemPrice}>
-                        {formatCurrency(service.price)}
-                      </Text>
-                      <TouchableOpacity onPress={() => handleServiceToggle(serviceId)}>
-                        <Ionicons name="close-circle" size={20} color={colors.error} />
+                )}
+              </View>
+              <View style={styles.dentistSelectionList}>
+                {dentists.map((dentist) => {
+                  const isSelected = formData.selectedDentistIds.includes(dentist.id);
+                  return (
+                    <View key={dentist.id} style={styles.dentistChipContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.dentistChip,
+                          isSelected && styles.dentistChipSelected,
+                        ]}
+                        onPress={() => handleToggleDentist(dentist.id)}
+                      >
+                        <Text
+                          style={[
+                            styles.dentistChipText,
+                            isSelected && styles.dentistChipTextSelected,
+                          ]}
+                        >
+                          {dentist.name}
+                        </Text>
+                        {isSelected && (
+                          <Ionicons name="checkmark" size={16} color={colors.cardBackground} />
+                        )}
                       </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          <View style={styles.servicesList}>
-            {allServices.map((service) => {
-              const isSelected = formData.services.includes(service.id);
-              return (
-                <TouchableOpacity
-                  key={service.id}
-                  style={[
-                    styles.serviceOption,
-                    isSelected && styles.serviceOptionSelected,
-                    service.isCustom && styles.customItem,
-                  ]}
-                  onPress={() => handleServiceToggle(service.id)}
-                >
-                  <View style={styles.serviceOptionContent}>
-                    <View style={styles.serviceHeader}>
-                      <Text style={styles.serviceOptionName}>{service.name}</Text>
-                      {service.isCustom && (
-                        <View style={styles.customBadgeContainer}>
-                          <View style={styles.customBadge}>
-                            <Text style={styles.customBadgeText}>Tùy chỉnh</Text>
-                          </View>
+                      {showDentistActions && (
+                        <View style={styles.dentistActions}>
                           <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleEditCustomService(service.id);
-                            }}
-                            style={styles.editIconButton}
+                            onPress={() => handleEditDentist(dentist.id)}
+                            style={styles.dentistActionButton}
                           >
                             <Ionicons name="pencil" size={16} color={colors.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDeleteDentist(dentist.id)}
+                            style={styles.dentistActionButton}
+                          >
+                            <Ionicons name="trash" size={16} color={colors.error} />
                           </TouchableOpacity>
                         </View>
                       )}
                     </View>
-                    <Text style={styles.serviceOptionPrice}>
-                      {formatCurrency(service.price)}
-                    </Text>
-                  </View>
-                  {isSelected && (
-                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Card>
-
-        {/* Disease Categories Selection */}
-        <Card>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Chẩn đoán / Mặt bệnh</Text>
-            <TouchableOpacity
-              onPress={() => setShowCustomDiseaseModal(true)}
-              style={styles.addButton}
-            >
-              <Ionicons name="add-circle" size={20} color={colors.primary} />
-              <Text style={styles.addButtonText}>Thêm mặt bệnh</Text>
-            </TouchableOpacity>
-          </View>
-
-          {formData.diseases.length > 0 && (
-            <View style={styles.selectedItemsContainer}>
-              <Text style={styles.selectedItemsLabel}>Đã chọn:</Text>
-              {formData.diseases.map((diseaseId) => {
-                const disease = allDiseases.find((d) => d.id === diseaseId);
-                if (!disease) return null;
-                return (
-                  <View key={diseaseId} style={styles.selectedItem}>
-                    <Text style={styles.selectedItemName}>{disease.name}</Text>
-                    <View style={styles.selectedItemRight}>
-                      <Text style={styles.selectedItemPrice}>
-                        {formatCurrency(disease.price)}
-                      </Text>
-                      <TouchableOpacity onPress={() => handleDiseaseToggle(diseaseId)}>
-                        <Ionicons name="close-circle" size={20} color={colors.error} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
+                  );
+                })}
+              </View>
             </View>
           )}
-
-          <View style={styles.servicesList}>
-            {allDiseases.map((disease) => {
-              const isSelected = formData.diseases.includes(disease.id);
-              return (
-                <TouchableOpacity
-                  key={disease.id}
-                  style={[
-                    styles.serviceOption,
-                    isSelected && styles.serviceOptionSelected,
-                    disease.isCustom && styles.customItem,
-                  ]}
-                  onPress={() => handleDiseaseToggle(disease.id)}
-                >
-                  <View style={styles.serviceOptionContent}>
-                    <View style={styles.serviceHeader}>
-                      <Text style={styles.serviceOptionName}>{disease.name}</Text>
-                      {disease.isCustom && (
-                        <View style={styles.customBadgeContainer}>
-                          <View style={styles.customBadge}>
-                            <Text style={styles.customBadgeText}>Tùy chỉnh</Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              handleEditCustomDisease(disease.id);
-                            }}
-                            style={styles.editIconButton}
-                          >
-                            <Ionicons name="pencil" size={16} color={colors.primary} />
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.serviceOptionPrice}>
-                      {formatCurrency(disease.price)}
-                    </Text>
-                  </View>
-                  {isSelected && (
-                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Card>
-
-        {/* Medical Notes */}
-        <Card>
-          <Text style={styles.sectionTitle}>Ghi chú y tế</Text>
-          <Input
-            value={formData.medicalNotes}
-            onChangeText={(text) => setFormData({ ...formData, medicalNotes: text })}
-            placeholder="Nhập ghi chú về tình trạng, điều trị, hướng dẫn cho bệnh nhân..."
-            multiline
-            numberOfLines={5}
-            style={styles.notesInput}
-          />
-        </Card>
-
-        {/* Summary Card */}
-        <Card style={styles.summaryCard}>
-          <View style={styles.summaryHeader}>
-            <Ionicons name="receipt-outline" size={24} color={colors.primary} />
-            <Text style={styles.summaryTitle}>Tổng kết</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Số dịch vụ:</Text>
-            <Text style={styles.summaryValue}>{formData.services.length}</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Số mặt bệnh:</Text>
-            <Text style={styles.summaryValue}>{formData.diseases.length}</Text>
-          </View>
-          <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Tổng cộng:</Text>
-            <Text style={styles.totalValue}>{formatCurrency(totalCost)}</Text>
-          </View>
         </Card>
 
         {/* Payment Summary */}
@@ -655,11 +467,11 @@ export default function CreateExaminationScreen() {
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabel}>Thanh toán:</Text>
             <View style={styles.paymentInputContainer}>
-              <Input
-                value={paidAmount.toString()}
+              <TextInput
+                value={formData.paidAmount > 0 ? formData.paidAmount.toString() : ''}
                 onChangeText={(text) => {
                   const amount = parseFloat(text) || 0;
-                  setPaidAmount(amount);
+                  setFormData((prev) => ({ ...prev, paidAmount: amount }));
                 }}
                 placeholder="0"
                 keyboardType="numeric"
@@ -669,14 +481,16 @@ export default function CreateExaminationScreen() {
           </View>
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabel}>Còn nợ:</Text>
-            <Text style={[
-              styles.paymentValue,
-              { color: totalCost - paidAmount > 0 ? colors.error : colors.success }
-            ]}>
-              {formatCurrency(Math.max(0, totalCost - paidAmount))}
+            <Text
+              style={[
+                styles.paymentValue,
+                { color: debt > 0 ? colors.error : colors.success },
+              ]}
+            >
+              {formatCurrency(debt)}
             </Text>
           </View>
-          {totalCost > 0 && paidAmount >= totalCost && (
+          {totalCost > 0 && formData.paidAmount >= totalCost && (
             <View style={styles.paymentNote}>
               <Ionicons name="checkmark-circle" size={16} color={colors.success} />
               <Text style={styles.paymentNoteText}>Đã thanh toán đủ</Text>
@@ -684,157 +498,192 @@ export default function CreateExaminationScreen() {
           )}
         </Card>
 
+        {/* Optional: Image Selection */}
+        <Card>
+          <Text style={styles.sectionTitle}>(Optional) Chọn ảnh</Text>
+          <Text style={styles.optionalNote}>
+            Chọn tất cả ảnh, không cần trước sau
+          </Text>
+          <TouchableOpacity style={styles.imageButton}>
+            <Ionicons name="image-outline" size={24} color={colors.primary} />
+            <Text style={styles.imageButtonText}>Chọn ảnh</Text>
+          </TouchableOpacity>
+        </Card>
+
+        {/* Follow-up Schedule */}
+        <Card>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Lịch tái khám</Text>
+            <TouchableOpacity onPress={handleAddFollowUpDate} style={styles.addButton}>
+              <Ionicons name="add-circle" size={20} color={colors.primary} />
+              <Text style={styles.addButtonText}>Thêm ngày</Text>
+            </TouchableOpacity>
+          </View>
+          {formData.followUpDates.length > 0 && (
+            <View style={styles.followUpDatesList}>
+              {formData.followUpDates.map((date, index) => (
+                <View key={index} style={styles.followUpDateItem}>
+                  <TextInput
+                    style={styles.followUpDateInput}
+                    value={date}
+                    onChangeText={(text) => handleUpdateFollowUpDate(index, text)}
+                    placeholder="dd-mm-yyyy"
+                  />
+                  <TouchableOpacity
+                    onPress={() => handleRemoveFollowUpDate(index)}
+                    style={styles.followUpDateActionButton}
+                  >
+                    <Ionicons name="trash" size={18} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
+
+        {/* Follow-up Content (Internal) */}
+        <Card>
+          <Text style={styles.sectionTitle}>Nội dung tái khám</Text>
+          <Text style={styles.internalNote}>(Nội bộ xem, không in cho khách)</Text>
+          <TextInput
+            style={styles.textArea}
+            value={formData.followUpContent}
+            onChangeText={(text) => setFormData((prev) => ({ ...prev, followUpContent: text }))}
+            placeholder="Ví dụ: Làm tiếp răng số 6, làm tiếp răng số 7..."
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </Card>
+
+        {/* Signatures */}
+        <Card>
+          <Text style={styles.sectionTitle}>Chữ ký</Text>
+          <View style={styles.signatureContainer}>
+            <View style={styles.signatureItem}>
+              <Text style={styles.signatureLabel}>Khách hàng (kí tên)</Text>
+              <TextInput
+                style={styles.signatureInput}
+                value={formData.customerSignature}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({ ...prev, customerSignature: text }))
+                }
+                placeholder="Chữ ký khách hàng"
+              />
+            </View>
+            <View style={styles.signatureItem}>
+              <Text style={styles.signatureLabel}>Bác sĩ (kí tên)</Text>
+              <TextInput
+                style={styles.signatureInput}
+                value={formData.dentistSignature}
+                onChangeText={(text) =>
+                  setFormData((prev) => ({ ...prev, dentistSignature: text }))
+                }
+                placeholder="Chữ ký bác sĩ"
+              />
+            </View>
+          </View>
+        </Card>
+
         {/* Save Button */}
         <Button
-          title="Lưu phiếu khám bệnh"
+          title="Lưu hồ sơ khám chữa bệnh"
           onPress={handleSave}
           fullWidth
           style={styles.saveButton}
         />
       </ScrollView>
 
-      {/* Custom Service Modal */}
+      {/* Add Dentist Modal */}
       <Modal
-        visible={showCustomServiceModal}
+        visible={showAddDentistModal}
         transparent
         animationType="slide"
         onRequestClose={() => {
-          // Disable back button on Android to prevent accidental data loss
-          // Only allow closing via close button
+          setShowAddDentistModal(false);
+          setNewDentistForm({ name: '' });
+          setEditingDentistId(null);
         }}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingServiceId ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setShowCustomServiceModal(false);
-                    setEditingServiceId(null);
-                    setCustomServiceForm({ name: '', price: '' });
-                  }}
-                >
-                  <Ionicons name="close" size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView 
-                  style={styles.modalBody}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                >
-                  <Input
-                    ref={serviceNameInputRef}
-                    label="Tên dịch vụ *"
-                    value={customServiceForm.name}
-                    onChangeText={(text) =>
-                      setCustomServiceForm({ ...customServiceForm, name: text })
-                    }
-                    placeholder="Ví dụ: Tẩy trắng răng, Niềng răng..."
-                    returnKeyType="next"
-                  />
-
-                  <Input
-                    label="Giá (₫) *"
-                    value={customServiceForm.price}
-                    onChangeText={(text) =>
-                      setCustomServiceForm({ ...customServiceForm, price: text })
-                    }
-                    placeholder="Nhập giá tiền"
-                    keyboardType="numeric"
-                  />
-
-                  <Button
-                    title={editingServiceId ? 'Lưu thay đổi' : 'Thêm dịch vụ'}
-                    onPress={handleAddCustomService}
-                    fullWidth
-                    style={styles.modalButton}
-                  />
-              </ScrollView>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Thêm bác sĩ mới</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowAddDentistModal(false);
+                  setNewDentistForm({ name: '' });
+                  setEditingDentistId(null);
+                }}
+              >
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
             </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <Input
+                label="Tên bác sĩ *"
+                value={newDentistForm.name}
+                onChangeText={(text) => setNewDentistForm({ name: text })}
+                placeholder="Ví dụ: BS. Nguyễn Văn A"
+              />
+
+              <Button
+                title="Thêm bác sĩ"
+                onPress={handleAddDentist}
+                fullWidth
+                style={styles.modalButton}
+              />
+            </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
-      {/* Custom Disease Modal */}
+      {/* Edit Dentist Modal */}
       <Modal
-        visible={showCustomDiseaseModal}
+        visible={showEditDentistModal}
         transparent
         animationType="slide"
         onRequestClose={() => {
-          // Disable back button on Android to prevent accidental data loss
-          // Only allow closing via close button
+          setShowEditDentistModal(false);
+          setNewDentistForm({ name: '' });
+          setEditingDentistId(null);
         }}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingDiseaseId ? 'Chỉnh sửa mặt bệnh' : 'Thêm mặt bệnh mới'}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setShowCustomDiseaseModal(false);
-                    setEditingDiseaseId(null);
-                    setCustomDiseaseForm({ name: '', price: '' });
-                  }}
-                >
-                  <Ionicons name="close" size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView 
-                  style={styles.modalBody}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}
-                >
-                  <Input
-                    ref={diseaseNameInputRef}
-                    label="Tên mặt bệnh *"
-                    value={customDiseaseForm.name}
-                    onChangeText={(text) =>
-                      setCustomDiseaseForm({ ...customDiseaseForm, name: text })
-                    }
-                    placeholder="Ví dụ: Sâu răng, Viêm nướu..."
-                    returnKeyType="next"
-                    onSubmitEditing={() => {
-                      // Focus on price input if needed
-                    }}
-                  />
-
-                  <Input
-                    label="Giá (₫) *"
-                    value={customDiseaseForm.price}
-                    onChangeText={(text) =>
-                      setCustomDiseaseForm({ ...customDiseaseForm, price: text })
-                    }
-                    placeholder="Nhập giá tiền"
-                    keyboardType="numeric"
-                  />
-
-                  <Button
-                    title={editingDiseaseId ? 'Lưu thay đổi' : 'Thêm mặt bệnh'}
-                    onPress={handleAddCustomDisease}
-                    fullWidth
-                    style={styles.modalButton}
-                  />
-              </ScrollView>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chỉnh sửa bác sĩ</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowEditDentistModal(false);
+                  setNewDentistForm({ name: '' });
+                  setEditingDentistId(null);
+                }}
+              >
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
             </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <Input
+                label="Tên bác sĩ *"
+                value={newDentistForm.name}
+                onChangeText={(text) => setNewDentistForm({ name: text })}
+                placeholder="Ví dụ: BS. Nguyễn Văn A"
+              />
+
+              <Button
+                title="Cập nhật"
+                onPress={handleUpdateDentist}
+                fullWidth
+                style={styles.modalButton}
+              />
+            </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
+
     </SafeAreaView>
   );
 }
@@ -875,297 +724,402 @@ const styles = StyleSheet.create({
     padding: layout.screenPadding.mobile,
     paddingBottom: spacing.xl,
   },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: typography.fontFamily.semiBold,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.md,
   },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.semiBold,
-    color: colors.textPrimary,
-  },
-  searchInput: {
-    marginBottom: spacing.sm,
-  },
-  patientList: {
-    gap: spacing.sm,
-  },
-  emptyState: {
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  emptyStateText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-  },
-  newPatientButton: {
-    marginTop: spacing.sm,
-  },
-  patientOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.cardBackground,
-  },
-  patientOptionContent: {
-    flex: 1,
-  },
-  patientOptionName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semiBold,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  patientOptionMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  patientOptionPhone: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.textSecondary,
-  },
-  patientOptionLast3: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.textTertiary,
-    fontStyle: 'italic',
-  },
-  selectedPatientCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: `${colors.primary}10`,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    marginTop: spacing.sm,
-  },
-  selectedPatientInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    flex: 1,
-  },
-  selectedPatientDetails: {
-    flex: 1,
-  },
-  selectedPatientName: {
-    fontSize: typography.fontSize.base,
-    fontFamily: typography.fontFamily.semiBold,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  selectedPatientPhone: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.textSecondary,
-  },
-  viewPatientButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  viewPatientText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.medium,
-    color: colors.primary,
-  },
-  todayButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    backgroundColor: `${colors.primary}10`,
-  },
-  todayButtonText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-    color: colors.primary,
-  },
-  dateHint: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-    fontStyle: 'italic',
-  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
   },
   addButtonText: {
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.medium,
     color: colors.primary,
   },
-  selectedItemsContainer: {
-    marginBottom: spacing.md,
-    padding: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: borderRadius.md,
+  patientList: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
   },
-  selectedItemsLabel: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  selectedItem: {
+  patientItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: colors.cardBackground,
-    borderRadius: borderRadius.sm,
-    marginBottom: spacing.xs,
-  },
-  selectedItemName: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  selectedItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  selectedItemPrice: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
-    color: colors.primary,
-  },
-  servicesList: {
-    gap: spacing.sm,
-  },
-  serviceOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     padding: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.cardBackground,
   },
-  serviceOptionSelected: {
+  patientItemSelected: {
     borderColor: colors.primary,
     backgroundColor: `${colors.primary}10`,
   },
-  customItem: {
-    borderColor: colors.warning,
-    backgroundColor: `${colors.warning}10`,
-  },
-  serviceOptionContent: {
+  patientInfo: {
     flex: 1,
   },
-  serviceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  serviceOptionName: {
+  patientName: {
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.semiBold,
     color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
-  customBadgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+  patientPhone: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textSecondary,
   },
-  customBadge: {
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.warning,
+  relativeInput: {
+    marginTop: spacing.md,
   },
-  customBadgeText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.medium,
-    color: '#FFFFFF',
+  selectedPatient: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: `${colors.primary}10`,
+    borderRadius: borderRadius.md,
   },
-  editIconButton: {
-    padding: spacing.xs / 2,
-  },
-  serviceOptionPrice: {
+  selectedPatientText: {
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.medium,
     color: colors.primary,
   },
-  notesInput: {
+  textArea: {
     minHeight: 120,
-    textAlignVertical: 'top',
-  },
-  summaryCard: {
-    backgroundColor: `${colors.primary}10`,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  summaryTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.textPrimary,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  summaryLabel: {
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
     fontSize: typography.fontSize.base,
     fontFamily: typography.fontFamily.regular,
-    color: colors.textSecondary,
+    color: colors.textPrimary,
   },
-  summaryValue: {
-    fontSize: typography.fontSize.base,
+  table: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: colors.tableHeader,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  tableHeaderText: {
     fontFamily: typography.fontFamily.semiBold,
     color: colors.textPrimary,
   },
-  totalRow: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.md,
+  tableRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+  },
+  tableCell: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.xs,
+  },
+  tableCellSTT: {
+    textAlign: 'center',
+  },
+  tableCellInput: {
+    paddingHorizontal: spacing.xs,
+  },
+  serviceInput: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textPrimary,
+    padding: spacing.xs,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+    minHeight: 36,
+  },
+  priceInput: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textPrimary,
+    padding: spacing.xs,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+    textAlign: 'right',
+    minHeight: 36,
+  },
+  tableCellActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dentistSelectionContainer: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.divider,
   },
-  totalLabel: {
+  dentistSelectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  dentistLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flex: 1,
+  },
+  dentistSelectionLabel: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.textPrimary,
+  },
+  addDentistHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    backgroundColor: `${colors.primary}10`,
+  },
+  addDentistHeaderText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.primary,
+  },
+  addDentistButton: {
+    padding: spacing.xs,
+  },
+  dentistChipContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  dentistActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  dentistActionButton: {
+    padding: spacing.xs,
+  },
+  addDentistChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    backgroundColor: `${colors.primary}10`,
+    minWidth: 50,
+  },
+  dentistSelectionList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  dentistChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+  },
+  dentistChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dentistChipText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.textPrimary,
+  },
+  dentistChipTextSelected: {
+    color: colors.cardBackground,
+  },
+  actionButton: {
+    padding: spacing.xs,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textTertiary,
+    marginTop: spacing.md,
+  },
+  paymentTitle: {
     fontSize: typography.fontSize.lg,
     fontFamily: typography.fontFamily.semiBold,
     color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
-  totalValue: {
-    fontSize: typography.fontSize['2xl'],
-    fontFamily: typography.fontFamily.bold,
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  paymentLabel: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.textPrimary,
+  },
+  paymentValue: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: typography.fontFamily.semiBold,
     color: colors.primary,
+  },
+  paymentInputContainer: {
+    width: 150,
+  },
+  paymentInput: {
+    textAlign: 'right',
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textPrimary,
+    minHeight: 40,
+  },
+  paymentNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  paymentNoteText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.success,
+  },
+  optionalNote: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  imageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: colors.cardBackground,
+  },
+  imageButtonText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.primary,
+  },
+  followUpDatesList: {
+    gap: spacing.sm,
+  },
+  followUpDateItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  followUpDateItemEditing: {
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}05`,
+  },
+  followUpDateText: {
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  followUpDateInput: {
+    flex: 1,
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textPrimary,
+    marginRight: spacing.sm,
+    minHeight: 40,
+  },
+  followUpDateActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  followUpDateActionButton: {
+    padding: spacing.xs,
+  },
+  internalNote: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginBottom: spacing.sm,
+  },
+  signatureContainer: {
+    gap: spacing.md,
+  },
+  signatureItem: {
+    gap: spacing.xs,
+  },
+  signatureLabel: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+    color: colors.textPrimary,
+  },
+  signatureInput: {
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.cardBackground,
+    fontSize: typography.fontSize.base,
+    fontFamily: typography.fontFamily.regular,
+    color: colors.textPrimary,
   },
   saveButton: {
     marginTop: spacing.lg,
@@ -1177,26 +1131,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.lg,
   },
-  modalBackdrop: {
-    flex: 1,
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   modalContent: {
     backgroundColor: colors.cardBackground,
     borderRadius: borderRadius.xl,
-    padding: spacing.lg,
     width: '100%',
-    maxWidth:'100%',
-    maxHeight: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
     ...shadows.lg,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
   },
   modalTitle: {
     fontSize: typography.fontSize.xl,
@@ -1204,7 +1153,8 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   modalBody: {
-    maxHeight: '100%',
+    maxHeight: 400,
+    padding: spacing.lg,
   },
   modalButton: {
     marginTop: spacing.md,
